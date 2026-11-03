@@ -76,7 +76,7 @@
     try { let c = localStorage.getItem('qkh_client'); if (!c) { c = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('qkh_client', c); } return c; }
     catch { return Math.random().toString(36).slice(2); }
   })();
-  let version = -1, loading = null, polls = 0;
+  let version = -1, loading = null, polls = 0, lastSync = 0;
 
   async function load() {
     if (loading) return loading;
@@ -92,7 +92,7 @@
           const knownP = new Set(state.projects.map((p) => p.id));
           next.projects.filter((p) => !knownP.has(p.id) && p.created_by !== me).forEach((p) => toast(`${p.created_by} started a group project: “${p.title}”`));
         }
-        version = next.version;
+        version = next.version; lastSync = Date.now();
         Object.assign(state, next, { loaded: true, error: null });
       } catch (e) {
         if (!state.loaded) state.error = /Database/.test(e.message) ? e.message : "Couldn't load deadlines. Check your connection and refresh.";
@@ -108,8 +108,13 @@
     try {
       const r = await api(`/api/version${withPresence ? `?client=${clientId}` : ''}`);
       if (r.online != null) { $('#presence-count').textContent = r.online; $('#presence').classList.add('on'); }
+      lastSync = Date.now(); $('#offline-bar').hidden = true;
       if (r.version !== version) await load();
-    } catch { $('#presence').classList.remove('on'); }
+    } catch {
+      $('#presence').classList.remove('on');
+      // say so when live updates stop, instead of quietly showing a stale board
+      if (state.loaded) { $('#offline-bar').textContent = `Offline · showing deadlines from ${fmtTime(lastSync)}. Reconnecting…`; $('#offline-bar').hidden = false; }
+    }
   }
   function connect() {
     poll();
@@ -119,13 +124,43 @@
   // after this device writes something, refresh right away instead of waiting for the next poll
   const mutate = async (path, opts) => { const r = await api(path, opts); load(); return r; };
 
-  function toast(msg, err = false) {
+  // errors stay until dismissed; toasts with an action (Undo) stay 10 s, the rest 4.5 s
+  function toast(msg, err = false, action = null) {
     const el = document.createElement('div');
     el.className = 'toast' + (err ? ' err' : '');
-    el.innerHTML = `<span class="tdot"></span><span>${esc(msg)}</span>`;
+    el.innerHTML = `<span class="tdot"></span><span class="tmsg">${esc(msg)}</span>`;
+    const close = () => el.remove();
+    if (action) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'toast-btn'; b.textContent = action.label;
+      b.addEventListener('click', () => { action.run(); close(); });
+      el.appendChild(b);
+    }
+    if (err) {
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'toast-x'; x.textContent = '✕'; x.setAttribute('aria-label', 'Dismiss');
+      x.addEventListener('click', close);
+      el.appendChild(x);
+    } else setTimeout(close, action ? 10000 : 4500);
     $('#toasts').appendChild(el);
-    setTimeout(() => el.remove(), 4500);
   }
+
+  // deletes wait 10 s so a mis-tap can be undone; anything still waiting is sent if the page closes
+  const pendingDeletes = new Map();
+  const live = (list) => list.filter((x) => !pendingDeletes.has(x.id));
+  function deleteLater(id, label, path) {
+    const run = () => {
+      pendingDeletes.delete(id);
+      mutate(path, { method: 'DELETE', keepalive: true }).catch((err) => { toast(err.message, true); render(); });
+    };
+    pendingDeletes.set(id, { run, timer: setTimeout(run, 10000) });
+    render();
+    toast(`Deleted “${label}”`, false, { label: 'Undo', run: () => {
+      const p = pendingDeletes.get(id);
+      if (p) { clearTimeout(p.timer); pendingDeletes.delete(id); render(); }
+    } });
+  }
+  window.addEventListener('pagehide', () => pendingDeletes.forEach((p) => { clearTimeout(p.timer); p.run(); }));
 
   // ---------- rendering ----------
   function render() {
@@ -154,7 +189,7 @@
   }
 
   function homeView() {
-    const all = [...state.deadlines].sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
+    const all = live(state.deadlines).sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
     const upcoming = all.filter((d) => !done.has(d.id) && new Date(d.due_at) >= Date.now());
     const thisWeek = upcoming.filter((d) => dayDiff(d.due_at) <= 6).length;
     const first = me ? me.split(' ')[0] : 'everyone';
@@ -192,7 +227,9 @@
     const listHtml = filtered.length
       ? groups.filter(([k]) => byGroup[k].length).map(([k, label]) =>
           `<h2 class="section-title">${label} <span class="count">${byGroup[k].length}</span></h2><div class="list">${byGroup[k].map(card).join('')}</div>`).join('')
-      : `<div class="empty" style="margin-top:16px"><strong>No deadlines yet</strong>Post the first one with “+ Add deadline”.</div>`;
+      : all.length
+        ? `<div class="empty" style="margin-top:16px"><strong>No ${esc(ui.filter.toLowerCase())}${ui.filter === 'Quiz' ? 'zes' : 's'} on the board</strong><button type="button" class="btn small" data-filter="All" style="margin-top:10px">Show all deadlines</button></div>`
+        : `<div class="empty" style="margin-top:16px"><strong>No deadlines yet</strong>Post the first one with the + button.</div>`;
 
     return `
       <section class="hero">
@@ -226,7 +263,7 @@
   }
 
   function projectStats(p) {
-    const tasks = state.tasks.filter((t) => t.project_id === p.id);
+    const tasks = live(state.tasks).filter((t) => t.project_id === p.id);
     const doneCount = tasks.filter((t) => t.done).length;
     return { tasks, doneCount, pct: tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0 };
   }
@@ -236,7 +273,7 @@
     const list = [...state.projects].sort((a, b) => new Date(a.due_at || 8.64e15) - new Date(b.due_at || 8.64e15));
     const cards = list.map((p) => {
       const { tasks, doneCount, pct } = projectStats(p);
-      const members = state.members.filter((m) => m.project_id === p.id);
+      const members = live(state.members).filter((m) => m.project_id === p.id);
       return `<a class="pcard" href="#/projects/${p.id}">
         <div class="meta" style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)">${esc(p.course || 'Group project')}${p.due_at ? ` · due ${esc(fmtDue(p.due_at))}` : ''}</div>
         <h3>${esc(p.title)}</h3>
@@ -251,13 +288,13 @@
   function projectView(pid) {
     const p = state.projects.find((x) => x.id === pid);
     if (!p) return `<a class="back" href="#/projects">← All projects</a><div class="empty"><strong>Project not found</strong>It may have been removed.</div>`;
-    const members = state.members.filter((m) => m.project_id === p.id);
+    const members = live(state.members).filter((m) => m.project_id === p.id);
     const { tasks, doneCount, pct } = projectStats(p);
     const options = (sel) => `<option value="">Unassigned</option>` + members.map((m) => `<option value="${esc(m.name)}" ${sel === m.name ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
 
     const taskRows = tasks.map((t) => `<div class="task ${t.done ? 'done' : ''}">
         <input type="checkbox" class="check" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.title)} done">
-        <div class="tt"><strong>${esc(t.title)}</strong><small>${t.estimate_hours ? `~${t.estimate_hours} h` : ''}${t.source === 'ai' ? `${t.estimate_hours ? ' · ' : ''}<span class="badge b-ai" style="padding:0 6px;font-size:11px">AI</span>` : ''}</small></div>
+        <div class="tt"><strong>${esc(t.title)}</strong><small>${t.estimate_hours ? `~${t.estimate_hours} h` : ''}${t.source === 'ai' ? `${t.estimate_hours ? ' · ' : ''}<span class="badge b-ai" style="padding:0 6px;font-size:12px">AI</span>` : ''}</small></div>
         <label class="sr-only" for="as-${t.id}">Assign ${esc(t.title)}</label>
         <select id="as-${t.id}" data-assign="${t.id}">${options(t.assignee)}</select>
         <button type="button" class="icon-btn" data-del-task="${t.id}" aria-label="Delete task ${esc(t.title)}">✕</button>
@@ -305,9 +342,9 @@
     try {
       if (t.dataset.day) { ui.day = t.dataset.day; return render(); }
       if (t.dataset.filter) { ui.filter = t.dataset.filter; return render(); }
-      if (t.dataset.delDeadline) { await mutate(`/api/deadlines/${t.dataset.delDeadline}`, { method: 'DELETE' }); return; }
-      if (t.dataset.delTask) { await mutate(`/api/tasks/${t.dataset.delTask}`, { method: 'DELETE' }); return; }
-      if (t.dataset.delMember) { await mutate(`/api/members/${t.dataset.delMember}`, { method: 'DELETE' }); return; }
+      if (t.dataset.delDeadline) { const id = t.dataset.delDeadline; return deleteLater(id, state.deadlines.find((x) => x.id === id)?.title || 'deadline', `/api/deadlines/${id}`); }
+      if (t.dataset.delTask) { const id = t.dataset.delTask; return deleteLater(id, state.tasks.find((x) => x.id === id)?.title || 'task', `/api/tasks/${id}`); }
+      if (t.dataset.delMember) { const id = t.dataset.delMember; return deleteLater(id, state.members.find((x) => x.id === id)?.name || 'member', `/api/members/${id}`); }
       if (t.dataset.suggest) {
         Object.assign(ui, { suggestFor: t.dataset.suggest, suggestLoading: true, suggestions: null, suggestError: null }); render();
         try {
@@ -341,7 +378,7 @@
       if (t.dataset.taskDone) { await mutate(`/api/tasks/${t.dataset.taskDone}`, { method: 'PATCH', body: { done: t.checked } }); return; }
       if (t.dataset.assign) { await mutate(`/api/tasks/${t.dataset.assign}`, { method: 'PATCH', body: { assignee: t.value } }); return; }
       if (t.dataset.sAssign !== undefined) ui.suggestions[+t.dataset.sAssign].assignee = t.value;
-    } catch (err) { toast(err.message, true); }
+    } catch (err) { toast(err.message, true); render(); } // put the checkbox/select back to what the server has
   });
 
   document.addEventListener('input', (e) => {
