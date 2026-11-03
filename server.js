@@ -56,7 +56,7 @@ http.createServer(async (req, res) => {
 }).listen(PORT, '0.0.0.0', async () => {
   const os = await import('node:os');
   const lan = Object.values(os.networkInterfaces()).flat().find((i) => i && i.family === 'IPv4' && !i.internal);
-  console.log(`\n  Quiz Kab Hai? is running`);
+  console.log(`\n  Due Desk is running`);
   console.log(`  Local:   http://localhost:${PORT}`);
   if (lan) console.log(`  Network: http://${lan.address}:${PORT}`);
   console.log(`  Storage: ${store instanceof RedisStore ? 'Upstash Redis' : 'local data.json'}`);

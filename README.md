@@ -1,52 +1,25 @@
-# Quiz Kab Hai?
+# Due Desk
 
 A real-time shared deadline board for FAST NUCES Lahore students. Any student can post a quiz, assignment, project or exam, and it appears on everyone's screen within a few seconds. Group projects get members, AI-suggested task breakdowns and task assignments.
 
 No npm packages and no build step: a static frontend in `public/`, one serverless API in `api/`, and Upstash Redis for shared data.
 
-## Deploy to Vercel (one-time, about 5 minutes)
+## Deploy to Vercel (one-time)
 
-### 1. Put the code on GitHub
+1. Go to **vercel.com/new**, sign in with GitHub, find **due-desk** and click **Import**. Leave every setting as it is and click **Deploy**. The page will say "Database not connected yet" until step 2 is done.
+2. In the project, open **Storage** → **Create Database** → **Upstash for Redis** (free plan), and connect it to the **due-desk** project for all environments. Vercel adds the connection keys for you.
+3. In **Settings → Environment Variables**, add:
 
-Open Terminal in this folder and run:
+   | Name | Value |
+   | --- | --- |
+   | `ANTHROPIC_API_KEY` | your key from console.anthropic.com (without it, AI suggestions are generic offline ones) |
+   | `RESET_KEY` | any secret word, used to reset demo data |
 
-```bash
-git init && git add . && git commit -m "Initial commit"
-gh repo create quiz-kab-hai --private --source=. --push
-```
-
-(No `gh`? Install it with `brew install gh`, then run `gh auth login` once.)
-
-### 2. Import it into Vercel
-
-1. Go to **vercel.com/new** and sign in with GitHub.
-2. Find **quiz-kab-hai** and click **Import**.
-3. Leave every setting as it is and click **Deploy**. The page will say "Database not connected yet" until step 3 is done.
-
-### 3. Add the free database
-
-1. In your Vercel project, open the **Storage** tab.
-2. Click **Create Database**, choose **Upstash for Redis** (free plan), and create it.
-3. Connect it to the **quiz-kab-hai** project for all environments. Vercel adds the connection keys for you.
-
-### 4. Turn on real AI (optional, recommended)
-
-In **Settings → Environment Variables**, add:
-
-| Name | Value |
-| --- | --- |
-| `ANTHROPIC_API_KEY` | your key from console.anthropic.com |
-| `RESET_KEY` | any secret word, used to reset demo data |
-
-Without `ANTHROPIC_API_KEY`, "Suggest tasks with AI" returns generic offline suggestions.
-
-### 5. Redeploy
-
-Open **Deployments**, click the three dots on the latest one, and choose **Redeploy**. Your app is live at `https://quiz-kab-hai.vercel.app` (or the address Vercel shows).
+4. Open **Deployments**, click the three dots on the latest one and choose **Redeploy**. The app is live at `https://due-desk.vercel.app` (or the address Vercel shows).
 
 ## Updating the app
 
-Every push to GitHub redeploys automatically:
+Every push to `main` redeploys automatically:
 
 ```bash
 git add . && git commit -m "Describe the change" && git push

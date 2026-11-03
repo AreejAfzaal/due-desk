@@ -1,4 +1,4 @@
-// Quiz Kab Hai? — frontend (vanilla JS, no build step)
+// Due Desk — frontend (vanilla JS, no build step)
 (() => {
   'use strict';
 
@@ -195,7 +195,7 @@
 
     return `
       <section class="hero">
-        <h1>Quiz kab hai, ${esc(first)}?</h1>
+        <h1>What's due, ${esc(first)}?</h1>
         <p>${upcoming.length ? `${thisWeek} due this week · ${upcoming.length} upcoming in total` : 'Nothing upcoming. Post a deadline to start the board.'}</p>
       </section>
       <h2 class="section-title">Your to-do</h2>
