@@ -1,0 +1,12 @@
+{
+  "name": "quiz-kab-hai",
+  "version": "1.1.0",
+  "description": "Real-time shared deadline board for FAST NUCES Lahore students",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "dev": "node server.js",
+    "reset": "node server.js --reset"
+  }
+}
