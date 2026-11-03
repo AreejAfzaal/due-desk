@@ -31,6 +31,8 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
+/* Keep focused items clear of the sticky header and the floating button */
+html { scroll-padding-top: 124px; scroll-padding-bottom: 96px; }
 body { font-family: var(--font); background: var(--surface-muted); color: var(--ink); font-size: 16px; line-height: 24px; -webkit-font-smoothing: antialiased; padding-bottom: 96px; }
 a { color: var(--fast-sky-strong); }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -46,13 +48,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .logo-wrap { width: 40px; height: 40px; border-radius: 50%; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-text strong { font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
-.brand-text small { font-size: 12px; color: var(--ink-muted); font-weight: 500; }
+.brand-text small { white-space: nowrap; font-size: 12px; color: var(--ink-muted); font-weight: 500; }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 .presence { display: none; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--success-ink); background: var(--success-soft); padding: 4px 10px; border-radius: var(--radius-pill); }
 .presence.on { display: inline-flex; }
 .presence .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fast-green); animation: pulse 2s infinite; }
 @keyframes pulse { 50% { opacity: .35; } }
-.me-btn { border: 1px solid var(--line); background: var(--surface-raised); border-radius: var(--radius-pill); padding: 6px 12px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 36px; }
+.me-btn { border: 1px solid var(--line); background: var(--surface-raised); border-radius: var(--radius-pill); padding: 6px 12px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 36px; white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 .tabs { max-width: 760px; margin: 0 auto; display: flex; gap: 4px; padding: 0 12px; }
 .tabs a { text-decoration: none; color: var(--ink-muted); font-weight: 600; font-size: 15px; padding: 10px 12px; border-bottom: 3px solid transparent; }
 .tabs a.active { color: var(--ink); border-color: var(--fast-sky); }
@@ -67,7 +69,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Day strip */
 .daystrip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 8px; scrollbar-width: none; }
 .daystrip::-webkit-scrollbar { display: none; }
-.day { flex: 0 0 auto; min-width: 64px; border: 1px solid var(--line); background: var(--surface-raised); border-radius: var(--radius-md); padding: 8px 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; }
+.day { flex: 1 0 64px; min-width: 64px; border: 1px solid var(--line); background: var(--surface-raised); border-radius: var(--radius-md); padding: 8px 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; }
 .day .dname { font-size: 12px; font-weight: 600; color: var(--ink-muted); }
 .day .dnum { font-size: 20px; font-weight: 800; line-height: 24px; }
 .day .dcount { font-size: 11px; font-weight: 700; min-width: 20px; text-align: center; border-radius: var(--radius-pill); padding: 0 6px; background: var(--surface-muted); color: var(--ink-muted); }
@@ -75,6 +77,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .day[aria-pressed="true"] { background: var(--fast-gold); border-color: var(--fast-gold); }
 .day[aria-pressed="true"] .dname, .day[aria-pressed="true"] .dnum { color: var(--on-gold); }
 .day[aria-pressed="true"] .dcount { background: rgba(19,49,151,.12); color: var(--on-gold); }
+
 
 .todo { background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 4px 0; box-shadow: var(--shadow-card); }
 .todo-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
@@ -93,6 +96,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
 .chip { border: 1px solid var(--line); background: var(--surface-raised); color: var(--ink); border-radius: var(--radius-pill); padding: 6px 14px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 36px; }
 .chip[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+
+/* Sideways-scrolling rows on phones: fade the right edge so the cut-off reads as "more this way" */
+@media (max-width: 600px) {
+  .daystrip, .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-right: 32px; margin-right: -16px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+  .chips { padding-top: 5px; padding-bottom: 5px; padding-left: 5px; margin-left: -5px; margin-top: 11px; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; }
+  .day { flex: 0 0 auto; }
+}
 
 /* Deadline cards */
 .list { display: flex; flex-direction: column; gap: 10px; }
@@ -130,7 +143,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn:disabled { opacity: .6; cursor: progress; }
 .icon-btn { border: none; background: transparent; color: var(--ink-muted); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; display: grid; place-items: center; flex-shrink: 0; }
 .icon-btn:hover { background: var(--surface-muted); color: var(--ink); }
-.fab { position: fixed; right: max(16px, calc(50vw - 364px)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 20; background: var(--primary); color: var(--on-primary); border: none; border-radius: var(--radius-pill); padding: 0 22px; height: 56px; font-size: 16px; font-weight: 800; box-shadow: var(--shadow-pop); cursor: pointer; }
+.fab { position: fixed; right: max(16px, calc(50vw - 364px)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 20; background: var(--primary); color: var(--on-primary); border: none; border-radius: var(--radius-pill); padding: 0 22px; height: 56px; font-size: 16px; font-weight: 800; box-shadow: var(--shadow-pop); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.fab[hidden] { display: none; }
+.fab-plus { font-size: 22px; line-height: 1; }
+/* Phones: a round + button covers far less of the card underneath */
+@media (max-width: 600px) {
+  .fab { width: 56px; padding: 0; justify-content: center; }
+  .fab-plus { font-size: 28px; }
+  .fab-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+}
+/* Wide screens: sit in the margin beside the column instead of on top of it */
+@media (min-width: 1240px) { .fab { right: auto; left: calc(50vw + 396px); } }
 
 /* Projects */
 .pcard { display: block; text-decoration: none; color: inherit; background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-card); }
@@ -207,5 +230,10 @@ dialog.sheet::backdrop { background: rgba(11,27,63,.45); }
 .toast.err .tdot { background: var(--danger); }
 @keyframes tin { from { transform: translateY(-8px); opacity: 0; } }
 
+@media (max-width: 420px) {
+  .topbar-inner { gap: 8px; }
+  .presence-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .me-btn { max-width: 104px; }
+}
 @media (min-width: 700px) { .container { padding: 24px 16px; } .hero h1 { font-size: 32px; line-height: 40px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

@@ -137,7 +137,7 @@
     document.querySelectorAll('.tabs a').forEach((t) => t.classList.toggle('active', (t.dataset.tab === 'projects') === route.startsWith('/projects')));
     $('#me-btn').textContent = me ? me : 'Set name';
     $('#fab').hidden = route.startsWith('/projects/');
-    $('#fab').textContent = route.startsWith('/projects') ? '+ New project' : '+ Add deadline';
+    $('#fab-label').textContent = route.startsWith('/projects') ? 'New project' : 'Add deadline';
 
     const view = $('#view');
     if (state.error) view.innerHTML = `<div class="empty"><strong>Can't reach the board</strong>${esc(state.error)}</div>`;
