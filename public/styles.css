@@ -76,7 +76,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .day .dcount.has { background: var(--fast-navy-soft); color: var(--fast-navy); }
 .day[aria-pressed="true"] { background: var(--fast-gold); border-color: var(--fast-gold); }
 .day[aria-pressed="true"] .dname, .day[aria-pressed="true"] .dnum { color: var(--on-gold); }
-.day[aria-pressed="true"] .dcount { background: rgba(19,49,151,.12); color: var(--on-gold); }
+.day[aria-pressed="true"] .dcount { background: var(--on-gold); color: var(--fast-gold); }
 
 
 .todo { background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 4px 0; box-shadow: var(--shadow-card); }
@@ -146,8 +146,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .fab { position: fixed; right: max(16px, calc(50vw - 364px)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 20; background: var(--primary); color: var(--on-primary); border: none; border-radius: var(--radius-pill); padding: 0 22px; height: 56px; font-size: 16px; font-weight: 800; box-shadow: var(--shadow-pop); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .fab[hidden] { display: none; }
 .fab-plus { font-size: 22px; line-height: 1; }
-/* Phones: a round + button covers far less of the card underneath */
-@media (max-width: 600px) {
+/* Until there's a margin to sit in, a round + button covers far less of the card underneath */
+@media (max-width: 1239px) {
   .fab { width: 56px; padding: 0; justify-content: center; }
   .fab-plus { font-size: 28px; }
   .fab-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

@@ -35,8 +35,9 @@
   }
   function countdown(d) {
     const ms = new Date(d) - Date.now();
-    const abs = Math.abs(ms), m = Math.round(abs / 60000), h = Math.round(abs / 3600000), dd = Math.round(abs / 86400000);
-    const t = m < 60 ? `${m} min` : h < 48 ? `${h} h` : `${dd} days`;
+    const abs = Math.abs(ms), m = Math.round(abs / 60000), h = Math.round(abs / 3600000), dd = Math.abs(dayDiff(d));
+    // Past 24 hours, count calendar days so "Sunday" reads as 4 days away on a Wednesday, not 5
+    const t = m < 60 ? `${m} min` : h < 24 || !dd ? `${h} h` : `${dd} ${dd === 1 ? 'day' : 'days'}`;
     return ms >= 0 ? `in ${t}` : `${t} ago`;
   }
   function urgency(dl) {
@@ -45,7 +46,7 @@
     const diff = dayDiff(dl.due_at);
     if (diff === 0) return { key: 'today', label: 'Today', cls: 'b-today' };
     if (diff === 1) return { key: 'tomorrow', label: 'Tomorrow', cls: 'b-tomorrow' };
-    if (diff <= 6) return { key: 'week', label: 'This week', cls: 'b-week' };
+    if (diff <= 6) return { key: 'week', label: new Date(dl.due_at).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long' }), cls: 'b-week' };
     return { key: 'later', label: 'Later', cls: 'b-later' };
   }
   const timeAgo = (d) => {
@@ -137,7 +138,7 @@
     document.querySelectorAll('.tabs a').forEach((t) => t.classList.toggle('active', (t.dataset.tab === 'projects') === route.startsWith('/projects')));
     $('#me-btn').textContent = me ? me : 'Set name';
     $('#fab').hidden = route.startsWith('/projects/');
-    $('#fab-label').textContent = route.startsWith('/projects') ? 'New project' : 'Add deadline';
+    $('#fab').title = $('#fab-label').textContent = route.startsWith('/projects') ? 'New project' : 'Add deadline';
 
     const view = $('#view');
     if (state.error) view.innerHTML = `<div class="empty"><strong>Can't reach the board</strong>${esc(state.error)}</div>`;
@@ -185,7 +186,7 @@
 
     // grouped list
     const filtered = all.filter((d) => ui.filter === 'All' || d.type === ui.filter);
-    const groups = [['overdue', 'Overdue'], ['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'This week'], ['later', 'Later'], ['done', 'Done']];
+    const groups = [['overdue', 'Overdue'], ['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Next 7 days'], ['later', 'Later'], ['done', 'Done']];
     const byGroup = Object.fromEntries(groups.map(([k]) => [k, []]));
     filtered.forEach((d) => byGroup[urgency(d).key].push(d));
     const listHtml = filtered.length
@@ -196,7 +197,7 @@
     return `
       <section class="hero">
         <h1>What's due, ${esc(first)}?</h1>
-        <p>${upcoming.length ? `${thisWeek} due this week · ${upcoming.length} upcoming in total` : 'Nothing upcoming. Post a deadline to start the board.'}</p>
+        <p>${upcoming.length ? `${thisWeek} due in the next 7 days · ${upcoming.length} upcoming in total` : 'Nothing upcoming. Post a deadline to start the board.'}</p>
       </section>
       <h2 class="section-title">Your to-do</h2>
       <div class="daystrip" role="group" aria-label="Pick a day">${strip}</div>
@@ -290,7 +291,7 @@
       <div class="panel"><h2>Tasks</h2>
         <div class="progress" aria-label="${pct}% done"><span style="width:${pct}%"></span></div>
         <div class="prow" style="margin-bottom:6px"><span>${doneCount} of ${tasks.length} done</span><span>${pct}%</span></div>
-        <button type="button" class="btn ai" data-suggest="${p.id}" ${ui.suggestLoading ? 'disabled' : ''} style="width:100%;margin-top:6px">✨ Suggest tasks with AI</button>
+        <button type="button" class="btn ai" data-suggest="${p.id}" ${ui.suggestLoading ? 'disabled' : ''} style="width:100%;margin-top:6px"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>Suggest tasks with AI</button>
         ${suggest}
         <div style="margin-top:8px">${taskRows || '<p class="muted" style="margin:12px 0 0">No tasks yet. Ask the AI for a breakdown or add your own below.</p>'}</div>
         <form class="inline-form" data-add-task="${p.id}"><label class="sr-only" for="add-task">New task</label><input id="add-task" data-key="add-task" placeholder="Add a task manually" maxlength="120" required><button class="btn small primary" type="submit">Add</button></form>
@@ -376,7 +377,7 @@
     if (!v) { e.preventDefault(); return; }
     me = v.slice(0, 40); localStorage.setItem('qkh_name', me); render();
   });
-  $('#dlg-name').addEventListener('cancel', (e) => { if (!me) e.preventDefault(); });
+  $('#dlg-name').querySelector('[data-skip]').addEventListener('click', () => $('#dlg-name').close());
 
   function fillCourses() {
     const courses = [...new Set([...state.deadlines.map((d) => d.course), ...state.projects.map((p) => p.course)].filter(Boolean))].sort();
