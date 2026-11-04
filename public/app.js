@@ -191,6 +191,15 @@
     $('#fab').title = $('#fab-label').textContent = route.startsWith('/projects') ? 'New project' : 'Add deadline';
 
     const view = $('#view');
+    const landing = auth.checked && !user && !ui.browse;
+    document.body.classList.toggle('landing-mode', landing);
+    if (landing) {
+      // build the landing once, then only patch its live bits so typing in the form is never lost
+      if (!view.querySelector('.landing')) mountLanding(view);
+      updateLanding();
+      return;
+    }
+    if (!auth.checked) { view.innerHTML = `<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`; return; }
     if (state.error) view.innerHTML = `<div class="empty"><strong>Can't reach the board</strong>${esc(state.error)}</div>`;
     else if (!state.loaded) view.innerHTML = `<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
     else if (route.startsWith('/projects/')) view.innerHTML = projectView(route.split('/')[2]);
@@ -439,8 +448,248 @@
     }
   });
 
+  // ---------- landing page (signed out) ----------
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const L = { words: ['quiz', 'assignment', 'lab report', 'viva', 'project', 'deadline'], wordIdx: 0, counted: false, front: 0, pingIdx: 0, timers: [] };
+  const SAMPLE = [
+    { title: 'Quiz 3: Trees and heaps', course: 'Data Structures', type: 'Quiz', posted_by: 'Ali', due_at: new Date(Date.now() + 5 * 3600e3).toISOString() },
+    { title: 'Assignment 2: Inheritance', course: 'OOP', type: 'Assignment', posted_by: 'Fatima', due_at: new Date(Date.now() + 30 * 3600e3).toISOString() },
+    { title: 'Project proposal', course: 'Software Engineering', type: 'Project', posted_by: 'Ayesha', due_at: new Date(Date.now() + 80 * 3600e3).toISOString() },
+  ];
+  const upcomingForLanding = () => {
+    const list = live(state.deadlines).filter((d) => new Date(d.due_at) >= Date.now()).sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
+    return list.length ? list : SAMPLE;
+  };
+
+  function mountLanding(view) {
+    L.timers.forEach(clearInterval); L.timers = [];
+    view.innerHTML = `
+    <section class="landing">
+      <div class="l-bg" aria-hidden="true"><span class="l-blob b1" data-depth="18"></span><span class="l-blob b2" data-depth="-26"></span><span class="l-blob b3" data-depth="34"></span></div>
+
+      <div class="l-grid">
+      <div class="l-hero">
+        <span class="l-live"><span class="dot"></span><b id="l-online">1</b>&nbsp;online right now</span>
+        <h1 class="l-title">Never miss a <span class="l-rotator"><span id="l-word">quiz</span></span><br>ever again.</h1>
+        <p class="l-sub">One shared board for your whole batch. Someone posts a deadline, everyone sees it instantly. No more scrolling 400 WhatsApp messages to find the date.</p>
+        <button type="button" class="l-next" id="l-next" data-l-jump="signup"><span class="l-next-label">Next up</span><span id="l-next-title"></span><span class="l-clock" id="l-clock">--:--:--</span></button>
+      </div>
+
+        <div class="l-auth" id="l-auth">
+          <div class="l-seg" role="tablist" aria-label="Sign in or create an account" data-mode="signup">
+            <span class="l-seg-pill" aria-hidden="true"></span>
+            <button type="button" role="tab" id="l-tab-signup" data-l-mode="signup" aria-selected="true">I'm new</button>
+            <button type="button" role="tab" id="l-tab-login" data-l-mode="login" aria-selected="false">I have an account</button>
+          </div>
+          <form id="form-landing" class="l-form" data-mode="signup" novalidate>
+            <h2 id="l-form-title">Claim your spot ✨</h2>
+            <p class="muted" id="l-form-sub">Takes 20 seconds. Your name shows on what you post.</p>
+            <label class="field l-signup-only"><span>Your name</span><input name="name" maxlength="40" autocomplete="name" placeholder="Ali, Fatima, CR bhai…"></label>
+            <label class="field"><span>Email</span><input name="email" type="email" maxlength="254" autocomplete="email" placeholder="you@lhr.nu.edu.pk" required></label>
+            <div class="field">
+              <label for="l-password">Password</label>
+              <div class="l-pass"><input id="l-password" name="password" type="password" minlength="8" maxlength="200" autocomplete="new-password" required>
+                <button type="button" class="l-eye" id="l-eye" aria-label="Show password" aria-pressed="false">Show</button></div>
+              <div class="l-meter l-signup-only" aria-hidden="true"><span id="l-meter-bar"></span></div>
+              <small class="muted l-signup-only" id="l-meter-text">At least 8 characters.</small>
+            </div>
+            <p class="form-error" id="l-error" hidden></p>
+            <button type="submit" class="btn primary welcome-btn l-submit" id="l-submit">Create account →</button>
+          </form>
+          <button type="button" class="l-peek" data-peek>Just lurking? Peek at the board →</button>
+        </div>
+
+        <div class="l-preview" id="l-preview" aria-hidden="true">
+          <div class="l-stack" id="l-stack"></div>
+          <div class="l-ping" id="l-ping"><span class="tdot"></span><span id="l-ping-text"></span></div>
+          <p class="l-hint">Tap the cards</p>
+        </div>
+      </div>
+
+      <div class="l-stats">
+        <div class="l-stat"><b data-count="deadlines">0</b><span>deadlines on the board</span></div>
+        <div class="l-stat"><b data-count="projects">0</b><span>group projects</span></div>
+        <div class="l-stat"><b data-count="online">0</b><span>people online now</span></div>
+      </div>
+
+      <ol class="l-steps">
+        <li><span class="l-step-n">1</span><strong>Someone posts</strong><span>The CR, a topper, anyone. Title, course, due date. Done.</span></li>
+        <li><span class="l-step-n">2</span><strong>Everyone sees it</strong><span>It pops up live on every phone, sorted by what's due first.</span></li>
+        <li><span class="l-step-n">3</span><strong>AI splits group work</strong><span>Paste the brief, get tasks, assign them. No more "who's doing what?"</span></li>
+      </ol>
+      <p class="l-foot">Made for FAST NUCES Lahore students · built live with Claude</p>
+    </section>`;
+
+    L.counted = false;
+    renderStack();
+    // rotating word
+    if (!reduceMotion) L.timers.push(setInterval(() => {
+      const el = $('#l-word'); if (!el) return;
+      el.classList.add('out');
+      setTimeout(() => { L.wordIdx = (L.wordIdx + 1) % L.words.length; el.textContent = L.words[L.wordIdx]; el.classList.remove('out'); }, 260);
+    }, 2200));
+    // live countdown + online mirror
+    L.timers.push(setInterval(tickLanding, 1000));
+    // "X just posted" ping
+    L.timers.push(setInterval(ping, 3800));
+    ping();
+    // parallax blobs + tilting card stack
+    if (!reduceMotion) {
+      $('.landing').addEventListener('pointermove', (e) => {
+        const x = e.clientX / innerWidth - 0.5, y = e.clientY / innerHeight - 0.5;
+        document.querySelectorAll('.l-blob').forEach((b) => { const d = +b.dataset.depth; b.style.transform = `translate(${x * d}px, ${y * d}px)`; });
+      });
+      const prev = $('#l-preview'), stack = $('#l-stack');
+      prev.addEventListener('pointermove', (e) => {
+        const r = prev.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+        stack.style.transform = `rotateY(${x * 14}deg) rotateX(${-y * 12}deg)`;
+      });
+      prev.addEventListener('pointerleave', () => { stack.style.transform = ''; });
+    }
+    $('#l-stack').addEventListener('click', () => { L.front = (L.front + 1) % Math.min(3, upcomingForLanding().length); renderStack(); });
+    $('#l-eye').addEventListener('click', (e) => {
+      const p = $('#l-password'), show = p.type === 'password';
+      p.type = show ? 'text' : 'password';
+      e.currentTarget.textContent = show ? 'Hide' : 'Show';
+      e.currentTarget.setAttribute('aria-pressed', String(show));
+      e.currentTarget.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
+    $('#l-password').addEventListener('input', meter);
+    $('#form-landing').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      await submitAuth(f, f.dataset.mode === 'signup', $('#l-error'), $('#l-submit'), () => confetti($('#l-submit')));
+    });
+    if (auth.problem) { $('#l-error').textContent = auth.problem; $('#l-error').hidden = false; }
+    tickLanding();
+  }
+
+  function setLandingMode(mode) {
+    const f = $('#form-landing'); if (!f) return;
+    const signup = mode === 'signup';
+    f.dataset.mode = mode;
+    $('.l-seg').dataset.mode = mode;
+    $('#l-tab-signup').setAttribute('aria-selected', String(signup));
+    $('#l-tab-login').setAttribute('aria-selected', String(!signup));
+    $('#l-form-title').textContent = signup ? 'Claim your spot ✨' : 'Kya scene hai? 👀';
+    $('#l-form-sub').textContent = signup ? 'Takes 20 seconds. Your name shows on what you post.' : 'Welcome back. Your batch has been busy.';
+    $('#l-submit').textContent = signup ? 'Create account →' : "Let's go →";
+    f.password.autocomplete = signup ? 'new-password' : 'current-password';
+    $('#l-error').hidden = true;
+    f.classList.remove('swap'); void f.offsetWidth; f.classList.add('swap');
+    (signup ? f.name : f.email).focus({ preventScroll: true });
+  }
+
+  function meter() {
+    const v = $('#l-password').value;
+    let s = 0;
+    if (v.length >= 8) s++;
+    if (v.length >= 12) s++;
+    if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++;
+    if (/\d/.test(v) || /[^A-Za-z0-9]/.test(v)) s++;
+    const labels = ['At least 8 characters.', 'Okay, that works.', 'Nice.', 'Strong. Respect.', 'Unhackable vibes.'];
+    const bar = $('#l-meter-bar');
+    bar.style.width = `${v ? Math.max(8, s * 25) : 0}%`;
+    bar.dataset.level = String(s);
+    $('#l-meter-text').textContent = v.length && v.length < 8 ? `${8 - v.length} more to go.` : labels[s];
+  }
+
+  function renderStack() {
+    const list = upcomingForLanding().slice(0, 3);
+    const order = list.map((_, i) => list[(i + L.front) % list.length]);
+    $('#l-stack').innerHTML = order.map((d, i) => {
+      const u = urgency(d);
+      return `<article class="l-mini" style="--i:${i}">
+        <div class="meta"><span class="course-dot" style="background:${courseColor(d.course)}"></span>${esc(d.course)} · ${esc(d.type)}</div>
+        <h3>${esc(d.title)}</h3>
+        <div class="l-mini-foot"><span>${fmtDue(d.due_at)}</span><span class="badge ${u.cls}">${u.label}</span></div>
+        <div class="l-mini-by">Posted by ${esc(d.posted_by)}</div>
+      </article>`;
+    }).join('');
+  }
+
+  function ping() {
+    const el = $('#l-ping'); if (!el) return;
+    const list = upcomingForLanding();
+    const d = list[L.pingIdx++ % list.length];
+    $('#l-ping-text').textContent = `${d.posted_by} just posted: ${d.title}`;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  }
+
+  function tickLanding() {
+    if (!$('#l-clock')) { L.timers.forEach(clearInterval); L.timers = []; return; }
+    const next = upcomingForLanding()[0];
+    const ms = Math.max(0, new Date(next.due_at) - Date.now());
+    const p = (n) => String(n).padStart(2, '0');
+    const dd = Math.floor(ms / 86400e3), hh = Math.floor(ms / 3600e3) % 24, mm = Math.floor(ms / 60e3) % 60, ss = Math.floor(ms / 1e3) % 60;
+    $('#l-clock').textContent = `${dd ? dd + 'd ' : ''}${p(hh)}:${p(mm)}:${p(ss)}`;
+    $('#l-next-title').textContent = `${next.title} · ${next.course}`;
+    $('#l-online').textContent = $('#presence-count').textContent || '1';
+    const os = document.querySelector('[data-count="online"]'); if (os && L.counted) os.textContent = $('#presence-count').textContent || '1';
+  }
+
+  function updateLanding() {
+    if (!$('.landing')) return;
+    const counts = { deadlines: live(state.deadlines).length, projects: state.projects.length, online: +($('#presence-count').textContent || 1) };
+    document.querySelectorAll('[data-count]').forEach((el) => {
+      const target = counts[el.dataset.count];
+      if (!L.counted && state.loaded && !reduceMotion) {
+        const start = performance.now();
+        const step = (t) => { const k = Math.min(1, (t - start) / 900); el.textContent = Math.round(target * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); };
+        requestAnimationFrame(step);
+      } else el.textContent = target;
+    });
+    if (state.loaded) L.counted = true;
+    renderStack();
+    tickLanding();
+  }
+
+  function confetti(from) {
+    if (reduceMotion || !from) return;
+    const r = from.getBoundingClientRect(), colors = ['#0198CC', '#133197', '#FECC00', '#019832'];
+    for (let i = 0; i < 36; i++) {
+      const s = document.createElement('span');
+      s.className = 'confetti';
+      s.style.left = `${r.left + r.width / 2}px`; s.style.top = `${r.top}px`;
+      s.style.background = colors[i % 4];
+      s.style.setProperty('--dx', `${(Math.random() - 0.5) * 360}px`);
+      s.style.setProperty('--dy', `${-120 - Math.random() * 220}px`);
+      s.style.setProperty('--rot', `${Math.random() * 720 - 360}deg`);
+      document.body.appendChild(s);
+      setTimeout(() => s.remove(), 1300);
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const m = e.target.closest('[data-l-mode]');
+    if (m) return setLandingMode(m.dataset.lMode);
+    const j = e.target.closest('[data-l-jump]');
+    if (j) { setLandingMode(j.dataset.lJump); $('#l-auth').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    if (e.target.closest('[data-peek]')) { ui.browse = true; L.timers.forEach(clearInterval); L.timers = []; render(); window.scrollTo(0, 0); toast('Browsing as a guest. Sign in anytime to post.'); }
+  });
+
   // ---------- dialogs ----------
   // ---------- sign in / create account ----------
+  async function submitAuth(f, signup, err, btn, onSuccess) {
+    const fail = (msg, field) => { err.textContent = msg; err.hidden = false; if (field) field.focus(); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); };
+    if (signup && !f.name.value.trim()) return fail('Enter your name.', f.name);
+    if (!f.email.validity.valid || !f.email.value) return fail('Enter a valid email address.', f.email);
+    if (signup ? f.password.value.length < 8 : !f.password.value) return fail(signup ? 'Use a password of at least 8 characters.' : 'Enter your password.', f.password);
+    const label = btn.textContent;
+    btn.disabled = true; err.hidden = true; btn.textContent = signup ? 'Creating your account…' : 'Signing you in…';
+    try {
+      const r = await api(signup ? '/api/auth/signup' : '/api/auth/login', { method: 'POST',
+        body: { name: f.name.value, email: f.email.value, password: f.password.value } });
+      if (onSuccess) onSuccess();
+      f.reset();
+      setUser(r.user);
+      toast(signup ? `Welcome, ${r.user.name.split(' ')[0]}! Your account is ready.` : `Signed in as ${r.user.name}`);
+      btn.disabled = false; btn.textContent = label;
+      return true;
+    } catch (ex) { fail(ex.message, f.password); }
+    btn.disabled = false; btn.textContent = label;
+    return false;
+  }
   function setUser(u) { user = u; me = u ? u.name : ''; render(); }
   function setAuthMode(mode) {
     const f = $('#form-auth'), signup = mode === 'signup';
@@ -456,6 +705,12 @@
     $('#signin-error').hidden = true;
   }
   function askSignIn(mode = 'login') {
+    // on the landing page, use its built-in form instead of the pop-up
+    if (document.body.classList.contains('landing-mode') && $('#form-landing')) {
+      setLandingMode(mode);
+      $('#l-auth').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     const d = $('#dlg-signin');
     setAuthMode(mode);
     if (auth.problem) { $('#signin-error').textContent = auth.problem; $('#signin-error').hidden = false; }
@@ -465,20 +720,8 @@
   $('#auth-switch').addEventListener('click', () => askSignIn($('#form-auth').dataset.mode === 'login' ? 'signup' : 'login'));
   $('#form-auth').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const f = e.target, signup = f.dataset.mode === 'signup', err = $('#signin-error'), btn = $('#auth-submit');
-    const fail = (msg, field) => { err.textContent = msg; err.hidden = false; if (field) field.focus(); };
-    if (signup && !f.name.value.trim()) return fail('Enter your name.', f.name);
-    if (!f.email.validity.valid || !f.email.value) return fail('Enter a valid email address.', f.email);
-    if (signup ? f.password.value.length < 8 : !f.password.value) return fail(signup ? 'Use a password of at least 8 characters.' : 'Enter your password.', f.password);
-    btn.disabled = true; err.hidden = true;
-    try {
-      const r = await api(signup ? '/api/auth/signup' : '/api/auth/login', { method: 'POST',
-        body: { name: f.name.value, email: f.email.value, password: f.password.value } });
-      $('#dlg-signin').close(); f.reset();
-      setUser(r.user);
-      toast(signup ? `Welcome, ${r.user.name.split(' ')[0]}! Your account is ready.` : `Signed in as ${r.user.name}`);
-    } catch (ex) { fail(ex.message, f.password); }
-    btn.disabled = false;
+    const f = e.target;
+    await submitAuth(f, f.dataset.mode === 'signup', $('#signin-error'), $('#auth-submit'), () => $('#dlg-signin').close());
   });
   function openAccount() {
     $('#account-avatar').innerHTML = avatar(user.name);
@@ -489,7 +732,9 @@
   $('#signout-btn').addEventListener('click', async () => {
     try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
     $('#dlg-account').close();
+    ui.browse = false;
     setUser(null);
+    window.scrollTo(0, 0);
     toast('Signed out');
   });
 
@@ -568,6 +813,8 @@
   setInterval(() => { if (!document.querySelector('dialog[open]') && !(document.activeElement && document.activeElement.dataset.key)) render(); }, 60000);
 
   render();
-  const whoAmI = api('/api/auth/me').then((r) => { auth.problem = r.problem; if (r.user) setUser(r.user); return r.user; }).catch(() => null);
+  const whoAmI = api('/api/auth/me')
+    .then((r) => { auth.problem = r.problem; auth.checked = true; if (r.user) setUser(r.user); else render(); return r.user; })
+    .catch(() => { auth.checked = true; render(); return null; });
   Promise.all([load(), whoAmI]).then(() => connect());
 })();
