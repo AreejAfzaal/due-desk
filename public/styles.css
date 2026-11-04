@@ -453,3 +453,13 @@ body.landing-mode .container { max-width: 1120px; padding-top: 8px; }
   .hero-action { display: inline-flex; margin-top: 2px; }
   .fab { display: none !important; }
 }
+
+/* One custom chevron for every dropdown, vertically centred whatever the field height */
+select, input[list] {
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%230B1B3F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important; background-position: right 12px center !important; background-size: 12px 8px !important;
+  padding-right: 36px !important; cursor: pointer;
+}
+select::-ms-expand { display: none; }
+input[list]::-webkit-calendar-picker-indicator { opacity: 0; width: 36px; height: 100%; margin-right: -36px; cursor: pointer; }
