@@ -444,3 +444,12 @@ body.landing-mode .container { max-width: 1120px; padding-top: 8px; }
 .l-preview { padding-bottom: 52px; }
 .l-pattern { height: calc(100% - 52px); }
 .l-hint { position: absolute; left: 0; right: 0; bottom: 14px; margin: 0; text-align: center; }
+
+/* Main action beside the page heading on wider screens; phones keep the floating + */
+.hero.has-action { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.hero-action { display: none; flex-shrink: 0; height: 44px; padding: 0 18px; border-radius: var(--radius-pill); gap: 8px; }
+.hero-action svg { flex-shrink: 0; }
+@media (min-width: 768px) {
+  .hero-action { display: inline-flex; margin-top: 2px; }
+  .fab { display: none !important; }
+}

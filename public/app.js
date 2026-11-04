@@ -220,6 +220,9 @@
     }
   }
 
+  // the main action as a button beside the page heading (desktop); phones keep the floating + button
+  const heroAction = (label) => `<button type="button" class="btn primary hero-action" data-hero-add><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>${label}</button>`;
+
   // tab: 'home' (shared deadlines board) or 'todo' (your personal checklist by day)
   function homeView(tab = 'home') {
     const all = live(state.deadlines).sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
@@ -275,21 +278,21 @@
         ? `<div class="empty" style="margin-top:16px"><strong>No ${esc(ui.filter.toLowerCase())}${ui.filter === 'Quiz' ? 'zes' : 's'} on the board</strong><button type="button" class="btn small" data-filter="All" style="margin-top:10px">Show all deadlines</button></div>`
         : (user && !(user.courses || []).length
           ? `<div class="empty" style="margin-top:16px"><strong>Your board is empty</strong>Pick your courses and deadlines for them will show up here.<br><button type="button" class="btn small primary" data-open-account style="margin-top:12px">Pick my courses</button></div>`
-          : `<div class="empty" style="margin-top:16px"><strong>All quiet for now</strong>Nothing has been posted for ${esc((user?.courses || []).slice(0, 3).join(', '))}${(user?.courses || []).length > 3 ? ' and more' : ''} or your group projects yet. Be the first: tap + to post a deadline.</div>`);
+          : `<div class="empty" style="margin-top:16px"><strong>All quiet for now</strong>Nothing has been posted for ${esc((user?.courses || []).slice(0, 3).join(', '))}${(user?.courses || []).length > 3 ? ' and more' : ''} or your group projects yet. Be the first to post a deadline.</div>`);
 
     if (tab === 'todo') return `
-      <section class="hero">
+      <section class="hero has-action"><div>
         <h1>Your to-do</h1>
         <p>Pick a day and tick things off as you finish them. Only you see your ticks.</p>
-      </section>
+      </div>${heroAction('Add deadline')}</section>
       <div class="daystrip" role="group" aria-label="Pick a day" style="margin-top:20px">${strip}</div>
       <div class="todo">${todo}</div>`;
 
     return `
-      <section class="hero">
+      <section class="hero has-action"><div>
         <h1>What's due, ${esc(first)}?</h1>
         <p>${upcoming.length ? `${thisWeek} due in the next 7 days · ${upcoming.length} upcoming in total` : 'Nothing upcoming. Post a deadline to start the board.'}</p>
-      </section>
+      </div>${heroAction('Add deadline')}</section>
       <div class="chips" role="group" aria-label="Filter by type">
         ${['All', ...TYPES].map((t) => `<button type="button" class="chip" data-filter="${t}" aria-pressed="${ui.filter === t}">${t === 'All' ? 'All' : t + (t === 'Quiz' ? 'zes' : 's')}</button>`).join('')}
       </div>
@@ -332,7 +335,7 @@
         <div class="prow"><span>${doneCount} of ${tasks.length} tasks done</span><span class="avatars">${members.slice(0, 5).map((m) => avatar(m.name)).join('')}</span></div>
       </a>`;
     }).join('');
-    return `<section class="hero"><h1>Group projects</h1><p>Split the work, see who's doing what, and stop chasing people on WhatsApp.</p></section>
+    return `<section class="hero has-action"><div><h1>Group projects</h1><p>Split the work, see who's doing what, and stop chasing people on WhatsApp.</p></div>${heroAction('New project')}</section>
       <div class="list" style="margin-top:16px">${cards || `<div class="empty"><strong>No group projects yet</strong>Start one with “+ New project”, or ask a groupmate to add you.</div>`}</div>`;
   }
 
@@ -705,6 +708,7 @@
     const j = e.target.closest('[data-l-jump]');
     if (j) { setLandingMode(j.dataset.lJump); $('#l-auth').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     if (e.target.closest('[data-open-account]')) return openAccount();
+    if (e.target.closest('[data-hero-add]')) return location.hash.startsWith('#/projects') ? openProject() : openDeadline();
     if (e.target.closest('[data-open-add-task]')) { ui.addTaskOpen = !ui.addTaskOpen; render(); if (ui.addTaskOpen) $('#add-task')?.focus(); return; }
     if (e.target.closest('[data-close-add-task]')) { ui.addTaskOpen = false; ui.addDraft = {}; render(); return; }
   });
