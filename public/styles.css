@@ -423,3 +423,24 @@ body.landing-mode .container { max-width: 1120px; padding-top: 8px; }
 .person strong { display: block; font-size: 15px; }
 .person small { display: block; font-size: 12px; color: var(--ink-muted); }
 .people-empty { margin: 0; padding: 10px; font-size: 14px; color: var(--ink-muted); }
+
+/* Landing: design-system pattern behind the example cards (seal rings, dot grid, brand dots) */
+.l-preview { isolation: isolate; }
+.l-pattern { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+.lp-slab { fill: var(--fast-sky-soft); }
+.lp-dot { fill: var(--fast-sky); opacity: .35; }
+.lp-ring { fill: none; stroke: var(--fast-sky); stroke-width: 10; opacity: .18; }
+.lp-ring.faint { opacity: .1; }
+.lp-pill { fill: var(--fast-navy); opacity: .12; }
+.lp-pill.soft { opacity: .07; }
+.lp-gold { fill: var(--fast-gold); }
+.lp-green { fill: var(--fast-green); }
+.lp-navy { fill: var(--fast-navy); }
+.l-hint { position: relative; }
+@media (min-width: 900px) { .l-preview { min-height: 420px; } }
+.l-pattern { height: calc(100% - 44px); }
+.l-hint { margin-top: 28px; }
+@media (max-width: 899px) { .l-preview { padding: 36px 0 0; } .l-stack { width: min(300px, 84%); } }
+.l-preview { padding-bottom: 52px; }
+.l-pattern { height: calc(100% - 52px); }
+.l-hint { position: absolute; left: 0; right: 0; bottom: 14px; margin: 0; text-align: center; }

@@ -529,6 +529,25 @@
         </div>
 
         <div class="l-preview" id="l-preview" aria-hidden="true">
+          <svg class="l-pattern" viewBox="0 0 520 400" preserveAspectRatio="xMidYMid meet" focusable="false">
+            <defs>
+              <clipPath id="lp-clip"><rect x="20" y="24" width="480" height="352" rx="28"/></clipPath>
+              <pattern id="lp-dots" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.6" class="lp-dot"/></pattern>
+            </defs>
+            <rect x="20" y="24" width="480" height="352" rx="28" class="lp-slab"/>
+            <g clip-path="url(#lp-clip)">
+              <rect x="20" y="24" width="200" height="140" fill="url(#lp-dots)"/>
+              <circle cx="500" cy="376" r="96" class="lp-ring"/>
+              <circle cx="500" cy="376" r="148" class="lp-ring"/>
+              <circle cx="500" cy="376" r="200" class="lp-ring"/>
+              <circle cx="500" cy="376" r="252" class="lp-ring faint"/>
+              <rect x="372" y="44" width="104" height="24" rx="12" class="lp-pill"/>
+              <rect x="400" y="80" width="76" height="24" rx="12" class="lp-pill soft"/>
+            </g>
+            <circle cx="64" cy="340" r="36" class="lp-gold"/>
+            <circle cx="122" cy="364" r="10" class="lp-green"/>
+            <circle cx="476" cy="190" r="6" class="lp-navy"/>
+          </svg>
           <div class="l-stack" id="l-stack"></div>
           <p class="l-hint">What your board looks like · tap the cards</p>
         </div>
