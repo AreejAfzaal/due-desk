@@ -487,3 +487,15 @@ input[list]::-webkit-calendar-picker-indicator { opacity: 0; width: 36px; height
 .l-clerk .skeleton { height: 46px; border-radius: 999px; }
 .account-actions { flex-wrap: wrap; align-items: center; }
 .account-actions .spacer { flex: 1; }
+
+/* Clerk draws borders and lift with box-shadows; replace them with the app's flat hairline style */
+.l-clerk .cl-formFieldInput, .l-clerk .cl-otpCodeFieldInput { border: 1px solid var(--line) !important; box-shadow: none !important; background: var(--surface-raised) !important; }
+.l-clerk .cl-formFieldInput:hover { border-color: #B9CCDC !important; }
+.l-clerk .cl-formFieldInput:focus, .l-clerk .cl-formFieldInput:focus-visible { border-color: var(--fast-sky) !important; box-shadow: 0 0 0 4px var(--fast-sky-soft) !important; outline: none !important; }
+.l-clerk .cl-socialButtonsBlockButton { border: 1px solid var(--line) !important; box-shadow: none !important; background: var(--surface-raised) !important; }
+.l-clerk .cl-socialButtonsBlockButton:hover { background: var(--surface-muted) !important; border-color: #B9CCDC !important; }
+.l-clerk .cl-socialButtonsBlockButton:focus-visible { box-shadow: 0 0 0 4px var(--fast-sky-soft) !important; border-color: var(--fast-sky) !important; }
+.l-clerk .cl-formButtonPrimary { background: var(--primary) !important; background-image: none !important; box-shadow: none !important; border: none !important; }
+.l-clerk .cl-formButtonPrimary::before, .l-clerk .cl-formButtonPrimary::after { display: none !important; }
+.l-clerk .cl-formButtonPrimary:hover { background: #0F2878 !important; }
+.l-clerk .cl-formButtonPrimary:focus-visible { box-shadow: 0 0 0 4px var(--fast-sky-soft) !important; }
