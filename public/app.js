@@ -526,6 +526,7 @@
           <form id="form-landing" class="l-form" data-mode="signup" novalidate>
             <h2 id="l-form-title">Claim your spot ✨</h2>
             <p class="muted" id="l-form-sub">Takes 20 seconds. Your name shows on what you post.</p>
+            <div class="g-wrap" hidden><div class="g-btn" id="l-google"></div><div class="or-line"><span>or use email</span></div></div>
             <label class="field l-signup-only"><span>Your name</span><input name="name" maxlength="40" autocomplete="name" placeholder="Ali, Fatima, CR bhai…"></label>
             <label class="field"><span>Email</span><input name="email" type="email" maxlength="254" autocomplete="email" placeholder="you@lhr.nu.edu.pk" required></label>
             <div class="field">
@@ -618,6 +619,7 @@
       await submitAuth(f, f.dataset.mode === 'signup', $('#l-error'), $('#l-submit'), () => confetti($('#l-submit')));
     });
     initPicker($('#l-picker'));
+    renderGoogleButtons();
     if (auth.problem) { $('#l-error').textContent = auth.problem; $('#l-error').hidden = false; }
     tickLanding();
   }
@@ -725,6 +727,41 @@
 
   // ---------- dialogs ----------
   // ---------- sign in / create account ----------
+  // ---------- Sign in with Google (Google Identity Services) ----------
+  let googleReady = false;
+  function loadGoogle(clientId) {
+    if (!clientId || window.google?.accounts?.id) return;
+    const sc = document.createElement('script');
+    sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.defer = true;
+    sc.onload = () => {
+      google.accounts.id.initialize({ client_id: clientId, callback: onGoogle, ux_mode: 'popup', context: 'signin' });
+      googleReady = true; renderGoogleButtons();
+    };
+    document.head.appendChild(sc);
+  }
+  function renderGoogleButtons() {
+    if (!googleReady) return;
+    ['l-google', 'auth-google'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.done) return;
+      const w = Math.min(400, Math.max(220, el.parentElement.getBoundingClientRect().width || 320));
+      google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', logo_alignment: 'center', width: Math.round(w) });
+      el.dataset.done = '1';
+      el.closest('.g-wrap').hidden = false;
+    });
+  }
+  async function onGoogle(resp) {
+    try {
+      const fromLanding = !!$('#form-landing');
+      const r = await api('/api/auth/google', { method: 'POST', body: { credential: resp.credential } });
+      if ($('#dlg-signin').open) $('#dlg-signin').close();
+      if (fromLanding) confetti($('#l-google'));
+      setUser(r.user);
+      toast(r.isNew ? `Welcome, ${r.user.name.split(' ')[0]}! Your account is ready.` : `Signed in as ${r.user.name}`);
+      if (!(r.user.courses || []).length) setTimeout(() => { openAccount(); toast('One last step: pick your courses so your board fills up.'); }, 400);
+    } catch (ex) { toast(ex.message, true); }
+  }
+
   async function submitAuth(f, signup, err, btn, onSuccess) {
     const fail = (msg, field) => { err.textContent = msg; err.hidden = false; if (field) field.focus(); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); };
     if (signup && !f.name.value.trim()) return fail('Enter your name.', f.name);
@@ -771,6 +808,7 @@
     const d = $('#dlg-signin');
     setAuthMode(mode);
     if (!$('#auth-picker')._picked) initPicker($('#auth-picker'));
+    setTimeout(renderGoogleButtons, 0);
     if (auth.problem) { $('#signin-error').textContent = auth.problem; $('#signin-error').hidden = false; }
     if (!d.open) d.showModal();
     (mode === 'signup' ? $('#form-auth').name : $('#form-auth').email).focus();
@@ -961,7 +999,7 @@
 
   render();
   const whoAmI = api('/api/auth/me')
-    .then((r) => { auth.problem = r.problem; catalog = r.catalog || []; auth.checked = true; if (r.user) setUser(r.user); else render(); return r.user; })
+    .then((r) => { auth.problem = r.problem; catalog = r.catalog || []; loadGoogle(r.googleClientId); auth.checked = true; if (r.user) setUser(r.user); else render(); return r.user; })
     .catch(() => { auth.checked = true; render(); return null; });
   Promise.all([load(), whoAmI]).then(() => connect());
 })();

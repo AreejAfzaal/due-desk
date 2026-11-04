@@ -28,6 +28,15 @@ The database is seeded with one account you can sign in with:
 
 The repo is public, so anyone can read this password. Change or remove the account before sharing the live site widely.
 
+## Turn on "Continue with Google" (optional)
+
+1. Go to **console.cloud.google.com** → create a project (or pick one) → **APIs & Services → OAuth consent screen**. Choose **External**, fill in the app name (Due Desk) and your email, and publish it.
+2. **APIs & Services → Credentials → Create credentials → OAuth client ID** → type **Web application**.
+3. Under **Authorized JavaScript origins** add `https://due-desk-nine.vercel.app` (and `http://localhost:3000` for local testing). No redirect URIs are needed.
+4. Copy the **Client ID** (it ends in `.apps.googleusercontent.com`) and add it in Vercel → Settings → Environment Variables as `GOOGLE_CLIENT_ID`. Redeploy.
+
+The button only appears once `GOOGLE_CLIENT_ID` is set. Google accounts with the same email as an existing Due Desk account sign in to that account. New Google users are asked to pick their courses right after signing in.
+
 ## Updating the app
 
 Every push to `main` redeploys automatically:

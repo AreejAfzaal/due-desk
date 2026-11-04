@@ -473,3 +473,10 @@ input[list]::-webkit-calendar-picker-indicator { opacity: 0; width: 36px; height
 .course-chip .course-dot { box-shadow: none; }
 .course-chip[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 .course-chip:hover { border-color: var(--ink-muted); }
+
+/* Sign in with Google */
+.g-wrap { margin: 4px 0 14px; }
+.g-wrap[hidden] { display: none; }
+.g-btn { display: flex; justify-content: center; min-height: 44px; }
+.or-line { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); }
+.or-line::before, .or-line::after { content: ""; flex: 1; height: 1px; background: var(--line); }
