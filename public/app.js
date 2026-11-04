@@ -343,17 +343,19 @@
     const { tasks, doneCount, pct } = projectStats(p);
     const options = (sel) => `<option value="">Unassigned</option>` + members.map((m) => `<option value="${esc(m.name)}" ${sel === m.name ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
 
+    const hrs = (h) => (h ? `${h} ${h === 1 ? 'hr' : 'hrs'}` : 'Not set');
     const taskRows = tasks.map((t) => `<div class="task ${t.done ? 'done' : ''}">
         <input type="checkbox" class="check" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.title)} done">
-        <div class="tt"><strong>${esc(t.title)}</strong><small>${t.estimate_hours ? `Est. ${t.estimate_hours} ${t.estimate_hours === 1 ? 'hr' : 'hrs'}` : ''}${t.source === 'ai' ? `${t.estimate_hours ? ' · ' : ''}<span class="badge b-ai" style="padding:0 6px;font-size:12px">AI</span>` : ''}</small></div>
-        <label class="sr-only" for="as-${t.id}">Assign ${esc(t.title)}</label>
-        <select id="as-${t.id}" data-assign="${t.id}">${options(t.assignee)}</select>
+        <div class="tcell t-title"><span class="slabel">Task${t.source === 'ai' ? ' · <span class="ai-tag">AI suggested</span>' : ''}</span><strong>${esc(t.title)}</strong></div>
+        <div class="tcell t-hours"><span class="slabel">Est. time</span><span class="t-hours-val">${hrs(t.estimate_hours)}</span></div>
+        <label class="tcell t-assign"><span class="slabel">Assigned to</span><select data-assign="${t.id}" aria-label="Assign ${esc(t.title)}">${options(t.assignee)}</select></label>
         <button type="button" class="icon-btn" data-del-task="${t.id}" aria-label="Delete task ${esc(t.title)}">✕</button>
       </div>`).join('');
 
     let suggest = '';
     if (ui.suggestLoading && ui.suggestFor === p.id) {
-      suggest = `<div class="suggest"><h3>Thinking about your project…</h3><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`;
+      const ghost = (i) => `<div class="srow" aria-hidden="true"><div class="sfield s-title"><span class="slabel">Task ${i}</span><div class="skeleton"></div></div><div class="sfield s-hours"><span class="slabel">Est. time</span><div class="skeleton"></div></div><div class="sfield s-assign"><span class="slabel">Assign to</span><div class="skeleton"></div></div></div>`;
+      suggest = `<div class="suggest" aria-busy="true"><h3>Thinking about your project…</h3><p>Splitting it into tasks with time estimates.</p>${[1, 2, 3].map(ghost).join('')}</div>`;
     } else if (ui.suggestions && ui.suggestFor === p.id) {
       suggest = `<div class="suggest"><h3>Suggested tasks</h3>
         <p>${ui.offline ? 'Offline suggestions: add an Anthropic API key on the server for real AI. ' : ''}Edit, remove or assign them, then add them to the project.</p>
@@ -382,7 +384,13 @@
         <button type="button" class="btn ai" data-suggest="${p.id}" ${ui.suggestLoading ? 'disabled' : ''} style="width:100%;margin-top:6px"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>Suggest tasks with AI</button>
         ${suggest}
         <div style="margin-top:8px">${taskRows || '<p class="muted" style="margin:12px 0 0">No tasks yet. Ask the AI for a breakdown or add your own below.</p>'}</div>
-        <form class="inline-form" data-add-task="${p.id}"><label class="sr-only" for="add-task">New task</label><input id="add-task" data-key="add-task" placeholder="Add a task manually" maxlength="120" required><button class="btn small primary" type="submit">Add</button></form>
+        <form class="add-task-form" data-add-task="${p.id}">
+          <p class="add-task-title">Add a task yourself</p>
+          <label class="sfield at-title"><span class="slabel">Task</span><input id="add-task" name="title" data-key="add-task" placeholder="e.g. Design the login screen" maxlength="120" required></label>
+          <label class="sfield at-hours"><span class="slabel">Est. time</span><span class="hours-box"><input name="hours" data-key="add-task-hours" type="number" min="0.5" step="0.5" inputmode="decimal" placeholder="2"><span class="hours-unit" aria-hidden="true">hrs</span></span></label>
+          <label class="sfield at-assign"><span class="slabel">Assign to</span><select name="assignee" data-key="add-task-assignee">${options('')}</select></label>
+          <button class="btn small primary at-btn" type="submit">Add task</button>
+        </form>
       </div>`;
   }
 
@@ -447,12 +455,14 @@
     const f = e.target;
     if (f.dataset.addTask) {
       e.preventDefault();
-      const input = f.querySelector('input');
+      const input = f.querySelector('[name=title]');
       const value = input.value.trim();
       if (!value) return;
+      const hours = Number(f.querySelector('[name=hours]').value) || null, assignee = f.querySelector('[name=assignee]').value || null;
       try {
-        await mutate('/api/tasks', { method: 'POST', body: { project_id: f.dataset.addTask, title: value, source: 'manual' } });
-        const el = $(`#${input.id}`); if (el) { el.value = ''; el.focus(); }
+        await mutate('/api/tasks', { method: 'POST', body: { project_id: f.dataset.addTask, title: value, estimate_hours: hours, assignee, source: 'manual' } });
+        const el = $('#add-task'); if (el) { el.value = ''; el.focus(); }
+        const h = $('[data-key="add-task-hours"]'); if (h) h.value = '';
       } catch (err) { toast(err.message, true); }
     }
   });
