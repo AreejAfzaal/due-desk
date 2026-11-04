@@ -9,7 +9,9 @@
 
   const state = { deadlines: [], projects: [], members: [], tasks: [], ai: false, loaded: false, error: null };
   const ui = { filter: 'All', day: null, suggestions: null, suggestLoading: false, suggestError: null, offline: false, newIds: new Set() };
-  let me = localStorage.getItem('qkh_name') || '';
+  // signed-in Google user from the session cookie: { sub, name, email, picture } or null
+  let user = null, me = '';
+  const auth = { problem: null };
   let done = new Set(JSON.parse(localStorage.getItem('qkh_done') || '[]'));
 
   const $ = (s, el = document) => el.querySelector(s);
@@ -65,6 +67,7 @@
   async function api(path, opts = {}) {
     const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json' }, body: opts.body ? JSON.stringify(opts.body) : undefined });
     const data = await r.json().catch(() => ({}));
+    if (r.status === 401 && !path.startsWith('/api/auth/')) { setUser(null); askSignIn(); }
     if (!r.ok) throw new Error(data.error || 'Something went wrong. Try again.');
     return data;
   }
@@ -87,10 +90,10 @@
           const known = new Set(state.deadlines.map((d) => d.id));
           next.deadlines.filter((d) => !known.has(d.id)).forEach((d) => {
             ui.newIds.add(d.id); setTimeout(() => ui.newIds.delete(d.id), 1500);
-            if (d.posted_by !== me) toast(`${d.posted_by} just posted: ${d.course} ${d.type.toLowerCase()}, “${d.title}”`);
+            if (!user || d.posted_by_sub !== user.sub) toast(`${d.posted_by} just posted: ${d.course} ${d.type.toLowerCase()}, “${d.title}”`);
           });
           const knownP = new Set(state.projects.map((p) => p.id));
-          next.projects.filter((p) => !knownP.has(p.id) && p.created_by !== me).forEach((p) => toast(`${p.created_by} started a group project: “${p.title}”`));
+          next.projects.filter((p) => !knownP.has(p.id) && (!user || p.created_by_sub !== user.sub)).forEach((p) => toast(`${p.created_by} started a group project: “${p.title}”`));
         }
         version = next.version; lastSync = Date.now();
         Object.assign(state, next, { loaded: true, error: null });
@@ -171,7 +174,8 @@
 
     const route = location.hash.replace(/^#/, '') || '/';
     document.querySelectorAll('.tabs a').forEach((t) => t.classList.toggle('active', (t.dataset.tab === 'projects') === route.startsWith('/projects')));
-    $('#me-btn').textContent = me ? me : 'Set name';
+    $('#me-btn').innerHTML = user ? `${avatar(user.name)}<span>${esc(user.name.split(' ')[0])}</span>` : 'Sign in';
+    $('#me-btn').setAttribute('aria-label', user ? `Your account, ${user.name}` : 'Sign in');
     $('#fab').hidden = route.startsWith('/projects/');
     $('#fab').title = $('#fab-label').textContent = route.startsWith('/projects') ? 'New project' : 'Add deadline';
 
@@ -257,7 +261,7 @@
         <div class="foot"><span><b>${fmtDue(d.due_at)}</b> · ${countdown(d.due_at)}</span><span>Posted by ${esc(d.posted_by)} · ${timeAgo(d.created_at)}</span></div>
       </div>
       <div class="side"><span class="badge ${u.cls}">${u.label}</span>
-        ${d.posted_by === me ? `<button type="button" class="icon-btn" data-del-deadline="${d.id}" aria-label="Delete ${esc(d.title)}">✕</button>` : ''}
+        ${user && d.posted_by_sub === user.sub ? `<button type="button" class="icon-btn" data-del-deadline="${d.id}" aria-label="Delete ${esc(d.title)}">✕</button>` : ''}
       </div>
     </article>`;
   }
@@ -361,7 +365,7 @@
         await mutate('/api/tasks', { method: 'POST', body: { tasks: list } });
         toast(`Added ${list.length} tasks`); return;
       }
-      if (t.id === 'me-btn') return askName(true);
+      if (t.id === 'me-btn') return user ? openAccount() : askSignIn();
       if (t.id === 'fab') return location.hash.startsWith('#/projects') ? openProject() : openDeadline();
       if (t.hasAttribute('data-close')) return t.closest('dialog').close();
     } catch (err) { toast(err.message, true); }
@@ -403,25 +407,63 @@
   });
 
   // ---------- dialogs ----------
-  function askName(force = false) {
-    if (me && !force) return;
-    const d = $('#dlg-name');
-    d.querySelector('input').value = me;
-    d.showModal();
+  // ---------- sign in / create account ----------
+  function setUser(u) { user = u; me = u ? u.name : ''; render(); }
+  function setAuthMode(mode) {
+    const f = $('#form-auth'), signup = mode === 'signup';
+    f.dataset.mode = mode;
+    $('#auth-title').textContent = signup ? 'Create your account' : 'Assalam-o-alaikum!';
+    $('#auth-sub').textContent = signup ? 'Classmates see your name on what you post.' : 'Sign in to post deadlines and join group projects.';
+    $('#auth-submit').textContent = signup ? 'Create account' : 'Sign in';
+    $('#auth-switch-text').textContent = signup ? 'Already have an account?' : 'New here?';
+    $('#auth-switch').textContent = signup ? 'Sign in' : 'Create an account';
+    f.password.autocomplete = signup ? 'new-password' : 'current-password';
+    $('#signin-error').hidden = true;
   }
-  $('#form-name').addEventListener('submit', (e) => {
-    const v = e.target.name.value.trim();
-    if (!v) { e.preventDefault(); return; }
-    me = v.slice(0, 40); localStorage.setItem('qkh_name', me); render();
+  function askSignIn(mode = 'login') {
+    const d = $('#dlg-signin');
+    setAuthMode(mode);
+    if (auth.problem) { $('#signin-error').textContent = auth.problem; $('#signin-error').hidden = false; }
+    if (!d.open) d.showModal();
+    (mode === 'signup' ? $('#form-auth').name : $('#form-auth').email).focus();
+  }
+  $('#auth-switch').addEventListener('click', () => askSignIn($('#form-auth').dataset.mode === 'login' ? 'signup' : 'login'));
+  $('#form-auth').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target, signup = f.dataset.mode === 'signup', err = $('#signin-error'), btn = $('#auth-submit');
+    const fail = (msg, field) => { err.textContent = msg; err.hidden = false; if (field) field.focus(); };
+    if (signup && !f.name.value.trim()) return fail('Enter your name.', f.name);
+    if (!f.email.validity.valid || !f.email.value) return fail('Enter a valid email address.', f.email);
+    if (signup ? f.password.value.length < 8 : !f.password.value) return fail(signup ? 'Use a password of at least 8 characters.' : 'Enter your password.', f.password);
+    btn.disabled = true; err.hidden = true;
+    try {
+      const r = await api(signup ? '/api/auth/signup' : '/api/auth/login', { method: 'POST',
+        body: { name: f.name.value, email: f.email.value, password: f.password.value } });
+      $('#dlg-signin').close(); f.reset();
+      setUser(r.user);
+      toast(signup ? `Welcome, ${r.user.name.split(' ')[0]}! Your account is ready.` : `Signed in as ${r.user.name}`);
+    } catch (ex) { fail(ex.message, f.password); }
+    btn.disabled = false;
   });
-  $('#dlg-name').querySelector('[data-skip]').addEventListener('click', () => $('#dlg-name').close());
+  function openAccount() {
+    $('#account-avatar').innerHTML = avatar(user.name);
+    $('#account-name').textContent = user.name;
+    $('#account-email').textContent = user.email;
+    $('#dlg-account').showModal();
+  }
+  $('#signout-btn').addEventListener('click', async () => {
+    try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
+    $('#dlg-account').close();
+    setUser(null);
+    toast('Signed out');
+  });
 
   function fillCourses() {
     const courses = [...new Set([...state.deadlines.map((d) => d.course), ...state.projects.map((p) => p.course)].filter(Boolean))].sort();
     $('#course-list').innerHTML = courses.map((c) => `<option value="${esc(c)}">`).join('');
   }
   function openDeadline() {
-    if (!me) return askName();
+    if (!user) return askSignIn();
     const f = $('#form-deadline'); f.reset(); f.querySelector('.form-error').hidden = true;
     const d = new Date(Date.now() + 86400000); d.setHours(23, 59, 0, 0);
     f.due_at.value = toLocalInput(d);
@@ -433,7 +475,7 @@
     btn.disabled = true; err.hidden = true;
     try {
       await mutate('/api/deadlines', { method: 'POST', body: { title: f.title.value, course: f.course.value, type: f.type.value,
-        due_at: new Date(f.due_at.value).toISOString(), notes: f.notes.value, posted_by: me } });
+        due_at: new Date(f.due_at.value).toISOString(), notes: f.notes.value } });
       $('#dlg-deadline').close();
       if (location.hash && location.hash !== '#/') location.hash = '#/';
       toast('Posted. Everyone can see it now.');
@@ -466,7 +508,7 @@
     else if (e.key === 'Backspace' && !e.target.value && draftMembers.length) { draftMembers.pop(); renderDraftMembers(); }
   });
   function openProject() {
-    if (!me) return askName();
+    if (!user) return askSignIn();
     const f = $('#form-project'); f.reset(); f.querySelector('.form-error').hidden = true;
     draftMembers = []; renderDraftMembers(); fillCourses();
     $('#dlg-project').showModal(); f.title.focus();
@@ -479,7 +521,7 @@
     btn.disabled = true; err.hidden = true;
     try {
       const p = await mutate('/api/projects', { method: 'POST', body: { title: f.title.value, course: f.course.value, description: f.description.value,
-        due_at: f.due_at.value ? new Date(f.due_at.value).toISOString() : null, created_by: me, members: draftMembers } });
+        due_at: f.due_at.value ? new Date(f.due_at.value).toISOString() : null, members: draftMembers } });
       await load();
       $('#dlg-project').close();
       location.hash = `#/projects/${p.id}`;
@@ -491,5 +533,6 @@
   setInterval(() => { if (!document.querySelector('dialog[open]') && !(document.activeElement && document.activeElement.dataset.key)) render(); }, 60000);
 
   render();
-  load().then(() => { connect(); if (!me) askName(); });
+  const whoAmI = api('/api/auth/me').then((r) => { auth.problem = r.problem; if (r.user) setUser(r.user); return r.user; }).catch(() => null);
+  Promise.all([load(), whoAmI]).then(([, u]) => { connect(); if (!u) askSignIn(); });
 })();

@@ -14,8 +14,19 @@ No npm packages and no build step: a static frontend in `public/`, one serverles
    | --- | --- |
    | `ANTHROPIC_API_KEY` | your key from console.anthropic.com (without it, AI suggestions are generic offline ones) |
    | `RESET_KEY` | any secret word, used to reset demo data |
+   | `SESSION_SECRET` | a long random string; signs login cookies (`openssl rand -hex 32`) |
 
 4. Open **Deployments**, click the three dots on the latest one and choose **Redeploy**. The app is live at `https://due-desk.vercel.app` (or the address Vercel shows).
+
+## Demo account
+
+The database is seeded with one account you can sign in with:
+
+| Email | Password |
+| --- | --- |
+| `demo@duedesk.test` | `duedesk-demo` |
+
+The repo is public, so anyone can read this password. Change or remove the account before sharing the live site widely.
 
 ## Updating the app
 
@@ -44,7 +55,7 @@ Locally it uses a file instead of Redis. Put `ANTHROPIC_API_KEY=...` in a `.env`
 
 ## Features
 
-- **Name, no login:** students type their name once; it's saved on their phone.
+- **Accounts:** anyone can browse; posting and editing need an account (email + password, hashed with scrypt). Posts show the account's name, and only the poster can delete a deadline. Sessions last 30 days in an HttpOnly cookie.
 - **Post a deadline:** title, course, type, due date and notes.
 - **Live dashboard:** sorted by due date and grouped into Overdue / Today / Tomorrow / This week / Later / Done, with countdowns. New posts animate in on every screen with a toast ("Ali just posted…"). The header shows how many people are online.
 - **Daily to-do:** a 7-day strip; tap a day to see what's due as a checklist. Ticking items off is personal.
@@ -58,6 +69,7 @@ Locally it uses a file instead of Redis. Put `ANTHROPIC_API_KEY=...` in a `.env`
 | `public/` | The whole frontend: `index.html`, `app.js`, `styles.css` (FAST NUCES brand tokens, light and dark mode) and the logo |
 | `api/index.js` | Vercel serverless function; `vercel.json` sends every `/api/*` request here |
 | `lib/core.js` | All API logic, sample data and the Claude call |
+| `lib/auth.js` | Password hashing and signed session cookies |
 | `lib/stores.js` | Upstash Redis storage (over its REST API) and a local in-memory store |
 | `server.js` | Local development server |
 

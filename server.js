@@ -45,8 +45,9 @@ http.createServer(async (req, res) => {
   let body = {};
   try { body = raw ? JSON.parse(raw) : {}; } catch {}
   try {
-    const out = await handle(store, req.method, url.pathname.slice(5), Object.fromEntries(url.searchParams), body);
-    res.writeHead(out.status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    const ctx = { cookie: req.headers.cookie, secure: req.headers['x-forwarded-proto'] === 'https' };
+    const out = await handle(store, req.method, url.pathname.slice(5), Object.fromEntries(url.searchParams), body, ctx);
+    res.writeHead(out.status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...out.headers });
     res.end(JSON.stringify(out.body));
   } catch (e) {
     console.error(e);
