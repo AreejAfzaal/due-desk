@@ -476,15 +476,17 @@
   // ---------- landing page (signed out) ----------
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const L = { words: ['quiz', 'assignment', 'lab report', 'viva', 'project', 'deadline'], wordIdx: 0, counted: false, front: 0, pingIdx: 0, timers: [] };
+  // Example cards for the landing page. Always these, never real posts, so the stack is never empty or thin.
+  const inH = (h) => new Date(Date.now() + h * 3600e3).toISOString();
   const SAMPLE = [
-    { title: 'Quiz 3: Trees and heaps', course: 'Data Structures', type: 'Quiz', posted_by: 'Ali', due_at: new Date(Date.now() + 5 * 3600e3).toISOString() },
-    { title: 'Assignment 2: Inheritance', course: 'OOP', type: 'Assignment', posted_by: 'Fatima', due_at: new Date(Date.now() + 30 * 3600e3).toISOString() },
-    { title: 'Project proposal', course: 'Software Engineering', type: 'Project', posted_by: 'Ayesha', due_at: new Date(Date.now() + 80 * 3600e3).toISOString() },
+    { title: 'Quiz 3: Trees and heaps', course: 'Data Structures', type: 'Quiz', posted_by: 'Ali', due_at: inH(5) },
+    { title: 'Assignment 2: Inheritance', course: 'Object Oriented Programming', type: 'Assignment', posted_by: 'Fatima', due_at: inH(30) },
+    { title: 'Lab 5: Process scheduling', course: 'Operating Systems', type: 'Assignment', posted_by: 'Hamza', due_at: inH(52) },
+    { title: 'Project proposal', course: 'Software Engineering', type: 'Project', posted_by: 'Ayesha', due_at: inH(80) },
+    { title: 'Mid-term exam', course: 'Linear Algebra', type: 'Exam', posted_by: 'CR', due_at: inH(140) },
+    { title: 'Viva: ER diagrams', course: 'Database Systems', type: 'Quiz', posted_by: 'Usman', due_at: inH(200) },
   ];
-  const upcomingForLanding = () => {
-    const list = live(state.deadlines).filter((d) => new Date(d.due_at) >= Date.now()).sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
-    return list.length ? list : SAMPLE;
-  };
+  const upcomingForLanding = () => SAMPLE;
 
   function mountLanding(view) {
     L.timers.forEach(clearInterval); L.timers = [];
@@ -567,7 +569,7 @@
       });
       prev.addEventListener('pointerleave', () => { stack.style.transform = ''; });
     }
-    $('#l-stack').addEventListener('click', () => { L.front = (L.front + 1) % Math.min(3, upcomingForLanding().length); renderStack(); });
+    $('#l-stack').addEventListener('click', () => { L.front = (L.front + 1) % upcomingForLanding().length; renderStack(); });
     $('#l-eye').addEventListener('click', (e) => {
       const p = $('#l-password'), show = p.type === 'password';
       p.type = show ? 'text' : 'password';
@@ -617,8 +619,8 @@
   }
 
   function renderStack() {
-    const list = upcomingForLanding().slice(0, 3);
-    const order = list.map((_, i) => list[(i + L.front) % list.length]);
+    const list = upcomingForLanding();
+    const order = [0, 1, 2].map((i) => list[(i + L.front) % list.length]);
     $('#l-stack').innerHTML = order.map((d, i) => {
       const u = urgency(d);
       return `<article class="l-mini" style="--i:${i}">
