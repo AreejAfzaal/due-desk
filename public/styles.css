@@ -196,11 +196,16 @@ details.group[open] > summary::after { transform: rotate(45deg) translate(-2px, 
   .task { grid-template-columns: 28px 1fr 96px 170px 40px; grid-template-areas: "check title hours assign del"; }
   .task .check, .task .icon-btn { align-self: end; margin: 0 0 6px; }
 }
-.add-task-form { display: grid; grid-template-columns: 104px 1fr; grid-template-areas: "head head" "title title" "hours assign" "btn btn"; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); align-items: end; }
+.task-actions { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 6px; }
+.task-actions .btn { width: 100%; }
+@media (min-width: 640px) { .task-actions { grid-template-columns: 1fr 1fr; } }
+.add-task-form { display: grid; grid-template-columns: 104px 1fr; grid-template-areas: "head head" "title title" "hours assign" "btn btn"; gap: 8px; margin-top: 12px; padding: 14px; background: var(--surface-muted); border-radius: var(--radius-md); align-items: end; animation: swapIn .2s ease; }
+.at-btns { grid-area: btn; display: flex; gap: 8px; justify-content: flex-end; }
+.at-btns .btn { height: 44px; }
 .add-task-title { grid-area: head; margin: 0; font-size: 14px; font-weight: 700; }
 .at-title { grid-area: title; } .at-hours { grid-area: hours; } .at-assign { grid-area: assign; } .at-btn { grid-area: btn; }
 .add-task-form input, .add-task-form select { height: 44px; box-sizing: border-box; padding: 8px 10px; }
-@media (min-width: 640px) { .add-task-form { grid-template-columns: 1fr 104px 160px auto; grid-template-areas: "head head head head" "title hours assign btn"; } .at-btn { height: 44px; } }
+@media (min-width: 640px) { .add-task-form { grid-template-columns: 1fr 104px 160px auto; grid-template-areas: "head head head head" "title hours assign btn"; } }
 
 .suggest { background: var(--fast-sky-soft); border: 1px solid var(--fast-sky); border-radius: var(--radius-md); padding: 14px; margin-top: 12px; }
 .suggest h3 { margin: 0 0 4px; font-size: 16px; color: var(--fast-sky-strong); }

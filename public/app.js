@@ -381,16 +381,19 @@
       <div class="panel"><h2>Tasks</h2>
         <div class="progress" aria-label="${pct}% done"><span style="width:${pct}%"></span></div>
         <div class="prow" style="margin-bottom:6px"><span>${doneCount} of ${tasks.length} done</span><span>${pct}%</span></div>
-        <button type="button" class="btn ai" data-suggest="${p.id}" ${ui.suggestLoading ? 'disabled' : ''} style="width:100%;margin-top:6px"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>Suggest tasks with AI</button>
+        <div class="task-actions">
+        <button type="button" class="btn ai" data-suggest="${p.id}" ${ui.suggestLoading ? 'disabled' : ''}><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>Suggest tasks with AI</button>
+        <button type="button" class="btn" data-open-add-task aria-expanded="${!!ui.addTaskOpen}" aria-controls="add-task-form"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add task manually</button>
+        </div>
         ${suggest}
-        <div style="margin-top:8px">${taskRows || '<p class="muted" style="margin:12px 0 0">No tasks yet. Ask the AI for a breakdown or add your own below.</p>'}</div>
-        <form class="add-task-form" data-add-task="${p.id}">
-          <p class="add-task-title">Add a task yourself</p>
-          <label class="sfield at-title"><span class="slabel">Task</span><input id="add-task" name="title" data-key="add-task" placeholder="e.g. Design the login screen" maxlength="120" required></label>
-          <label class="sfield at-hours"><span class="slabel">Est. time</span><span class="hours-box"><input name="hours" data-key="add-task-hours" type="number" min="0.5" step="0.5" inputmode="decimal" placeholder="2"><span class="hours-unit" aria-hidden="true">hrs</span></span></label>
-          <label class="sfield at-assign"><span class="slabel">Assign to</span><select name="assignee" data-key="add-task-assignee">${options('')}</select></label>
-          <button class="btn small primary at-btn" type="submit">Add task</button>
-        </form>
+        <div style="margin-top:8px">${taskRows || '<p class="muted" style="margin:12px 0 0">No tasks yet. Ask the AI for a breakdown, or add one manually.</p>'}</div>
+        ${ui.addTaskOpen ? `<form class="add-task-form" id="add-task-form" data-add-task="${p.id}">
+          <p class="add-task-title">Add a task</p>
+          <label class="sfield at-title"><span class="slabel">Task</span><input id="add-task" name="title" data-key="add-task" placeholder="e.g. Design the login screen" maxlength="120" required value="${esc(ui.addDraft?.['add-task'] || '')}"></label>
+          <label class="sfield at-hours"><span class="slabel">Est. time</span><span class="hours-box"><input name="hours" data-key="add-task-hours" type="number" min="0.5" step="0.5" inputmode="decimal" placeholder="2" value="${esc(ui.addDraft?.['add-task-hours'] || '')}"><span class="hours-unit" aria-hidden="true">hrs</span></span></label>
+          <label class="sfield at-assign"><span class="slabel">Assign to</span><select name="assignee" data-key="add-task-assignee">${options(ui.addDraft?.['add-task-assignee'] || '')}</select></label>
+          <div class="at-btns"><button class="btn small" type="button" data-close-add-task>Cancel</button><button class="btn small primary" type="submit">Add task</button></div>
+        </form>` : ''}
       </div>`;
   }
 
@@ -449,7 +452,10 @@
     const t = e.target;
     if (t.dataset.sTitle !== undefined) ui.suggestions[+t.dataset.sTitle].title = t.value;
     if (t.dataset.sHours !== undefined) ui.suggestions[+t.dataset.sHours].estimate_hours = Number(t.value) || null;
+    // keep the manual task draft through live re-renders
+    if (t.dataset.key && t.dataset.key.startsWith('add-task')) (ui.addDraft = ui.addDraft || {})[t.dataset.key] = t.value;
   });
+  document.addEventListener('change', (e) => { const t = e.target; if (t.dataset.key === 'add-task-assignee') (ui.addDraft = ui.addDraft || {})['add-task-assignee'] = t.value; });
 
   document.addEventListener('submit', async (e) => {
     const f = e.target;
@@ -461,8 +467,8 @@
       const hours = Number(f.querySelector('[name=hours]').value) || null, assignee = f.querySelector('[name=assignee]').value || null;
       try {
         await mutate('/api/tasks', { method: 'POST', body: { project_id: f.dataset.addTask, title: value, estimate_hours: hours, assignee, source: 'manual' } });
-        const el = $('#add-task'); if (el) { el.value = ''; el.focus(); }
-        const h = $('[data-key="add-task-hours"]'); if (h) h.value = '';
+        ui.addTaskOpen = false; ui.addDraft = {}; render();
+        toast(`Added “${value}”`);
       } catch (err) { toast(err.message, true); }
     }
   });
@@ -674,6 +680,8 @@
     const j = e.target.closest('[data-l-jump]');
     if (j) { setLandingMode(j.dataset.lJump); $('#l-auth').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     if (e.target.closest('[data-open-account]')) return openAccount();
+    if (e.target.closest('[data-open-add-task]')) { ui.addTaskOpen = !ui.addTaskOpen; render(); if (ui.addTaskOpen) $('#add-task')?.focus(); return; }
+    if (e.target.closest('[data-close-add-task]')) { ui.addTaskOpen = false; ui.addDraft = {}; render(); return; }
   });
 
   // ---------- dialogs ----------
@@ -909,7 +917,7 @@
     btn.disabled = false;
   });
 
-  window.addEventListener('hashchange', () => { ui.suggestions = null; ui.suggestError = null; render(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', () => { ui.suggestions = null; ui.suggestError = null; ui.addTaskOpen = false; render(); window.scrollTo(0, 0); });
   setInterval(() => { if (!document.querySelector('dialog[open]') && !(document.activeElement && document.activeElement.dataset.key)) render(); }, 60000);
 
   render();
