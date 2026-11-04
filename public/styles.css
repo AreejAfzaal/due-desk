@@ -499,3 +499,51 @@ input[list]::-webkit-calendar-picker-indicator { opacity: 0; width: 36px; height
 .l-clerk .cl-formButtonPrimary::before, .l-clerk .cl-formButtonPrimary::after { display: none !important; }
 .l-clerk .cl-formButtonPrimary:hover { background: #0F2878 !important; }
 .l-clerk .cl-formButtonPrimary:focus-visible { box-shadow: 0 0 0 4px var(--fast-sky-soft) !important; }
+
+/* ---------- Phones ---------- */
+::placeholder { color: #8A98B0; opacity: 1; }
+@media (max-width: 600px) {
+  /* Inputs keep 16px text so iOS doesn't zoom in, but get slimmer and quieter placeholders */
+  input:not([type="radio"]):not([type="checkbox"]):not(.cl-input), textarea, select { padding: 10px 12px; min-height: 44px; }
+  ::placeholder { font-size: 14px; }
+  .l-form input:not(.cl-input), .welcome input:not([type="checkbox"]) { font-size: 16px; padding: 10px 12px; border-width: 1px; }
+  .cp-search { font-size: 16px !important; }
+  .field { gap: 4px; margin-bottom: 12px; }
+  .field > span, .field > label, .field legend, .field-label { font-size: 13px; }
+  .field small, .field .muted { font-size: 12px; line-height: 16px; }
+  .sheet-body { padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .sheet-body h2 { font-size: 20px; line-height: 28px; }
+  .sheet-head { margin-bottom: 8px; }
+  .seg span { padding: 6px 12px; font-size: 13px; }
+  textarea { min-height: 72px; }
+
+  /* Filters scroll sideways in one row instead of wrapping into a tall block */
+  .chips, .course-legend { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-left: -16px; margin-right: -16px; padding: 2px 16px; -webkit-overflow-scrolling: touch; }
+  .chips::-webkit-scrollbar, .course-legend::-webkit-scrollbar { display: none; }
+  .chip, .course-chip { flex-shrink: 0; }
+  .chip { padding: 6px 12px; font-size: 13px; min-height: 34px; }
+  .course-chip { font-size: 12px; min-height: 30px; padding: 3px 10px 3px 8px; }
+
+  /* Tighter type and cards */
+  .hero h1 { font-size: 24px; line-height: 32px; }
+  .hero p { font-size: 14px; line-height: 20px; }
+  .card { padding: 12px; gap: 10px; }
+  .card h3 { font-size: 16px; line-height: 22px; }
+  .card .foot { font-size: 12px; }
+  .section-title { margin: 20px 2px 8px; }
+  .panel { padding: 14px; }
+  .panel h2 { font-size: 17px; }
+  .cp-chip { font-size: 12px; padding: 5px 10px; min-height: 32px; }
+  .account-row strong { font-size: 16px; }
+
+  /* Landing */
+  .l-title { font-size: 34px; line-height: 38px; }
+  .l-sub { font-size: 15px; line-height: 22px; }
+  .l-auth { padding: 14px; }
+  .l-form h2 { font-size: 22px; line-height: 28px; }
+  .l-stat b { font-size: 24px; line-height: 30px; }
+  .l-stat { padding: 10px 6px; }
+
+  /* Keep the floating + clear of the last card */
+  body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+}

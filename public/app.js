@@ -994,5 +994,6 @@
     auth.checked = true; render(); mountClerkForm();
     return null;
   })();
-  Promise.all([load(), whoAmI]).then(() => connect());
+  // load the board only once we know who is signed in, so it is fetched with their token
+  whoAmI.then(() => load()).then(() => connect());
 })();
