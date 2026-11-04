@@ -256,3 +256,22 @@ dialog.sheet::backdrop { background: rgba(11,27,63,.45); }
 }
 @media (min-width: 700px) { .container { padding: 24px 16px; } .hero h1 { font-size: 32px; line-height: 40px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Welcome (sign-in) sheet */
+.welcome { padding-top: 0; }
+.welcome-art { position: relative; height: 112px; margin: 0 -20px 16px; overflow: hidden; background: var(--fast-navy-soft); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.w-blob { position: absolute; border-radius: 50%; }
+.w-sky { width: 150px; height: 150px; background: var(--fast-sky); left: -30px; top: -50px; }
+.w-gold { width: 96px; height: 96px; background: var(--fast-gold); right: 56px; top: 36px; }
+.w-green { width: 28px; height: 28px; background: var(--fast-green); right: 28px; top: 18px; }
+.w-sticker { position: absolute; left: 20px; bottom: 14px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 6px 12px; border-radius: var(--radius-pill); transform: rotate(-4deg); box-shadow: var(--shadow-pop); }
+.welcome-kicker { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--fast-sky-strong); }
+.sheet-body h2.welcome-title { font-size: 30px; line-height: 36px; font-weight: 800; letter-spacing: -.02em; margin: 2px 0 6px; }
+.welcome > .muted { margin: 0 0 14px; }
+.welcome input:not([type="checkbox"]) { font-size: 17px; padding: 13px 14px; border-width: 2px; border-radius: var(--radius-md); }
+.welcome input:focus { border-color: var(--fast-sky); outline: none; box-shadow: 0 0 0 4px var(--fast-sky-soft); }
+.welcome-btn { width: 100%; min-height: 52px; font-size: 17px; border-radius: var(--radius-pill); }
+.welcome-skip { justify-content: center; }
+.welcome-skip .btn { border: none; background: transparent; color: var(--ink-muted); font-weight: 600; }
+dialog#dlg-signin[open] { animation: sheetUp .35s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes sheetUp { from { transform: translateY(24px) scale(.97); opacity: 0; } }

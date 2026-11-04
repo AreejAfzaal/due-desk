@@ -445,11 +445,13 @@
   function setAuthMode(mode) {
     const f = $('#form-auth'), signup = mode === 'signup';
     f.dataset.mode = mode;
-    $('#auth-title').textContent = signup ? 'Create your account' : 'Assalam-o-alaikum!';
-    $('#auth-sub').textContent = signup ? 'Classmates see your name on what you post.' : 'Sign in to post deadlines and join group projects.';
-    $('#auth-submit').textContent = signup ? 'Create account' : 'Sign in';
-    $('#auth-switch-text').textContent = signup ? 'Already have an account?' : 'New here?';
-    $('#auth-switch').textContent = signup ? 'Sign in' : 'Create an account';
+    $('#auth-kicker').textContent = signup ? 'Join the batch' : 'Oye, welcome back';
+    $('#auth-title').textContent = signup ? 'Claim your spot ✨' : 'Kya scene hai? 👀';
+    $('#auth-sub').textContent = signup ? 'Your name shows on what you post, so the batch knows who dropped that surprise quiz.' : 'Sign in to drop deadlines and squad up on group projects.';
+    $('#auth-sticker').textContent = signup ? 'takes 20 seconds' : 'no more “quiz kab hai?”';
+    $('#auth-submit').textContent = signup ? 'Create account →' : "Let's go →";
+    $('#auth-switch-text').textContent = signup ? 'Already one of us?' : 'New here?';
+    $('#auth-switch').textContent = signup ? 'Sign in' : 'Make an account';
     f.password.autocomplete = signup ? 'new-password' : 'current-password';
     $('#signin-error').hidden = true;
   }
