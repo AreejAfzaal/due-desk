@@ -692,17 +692,30 @@
   // ---------- dialogs ----------
   // ---------- sign in / create account ----------
   // ---------- Clerk (sign in, sign up, sessions) ----------
+  // Clerk's components styled to match the app: flat inputs with one hairline border, pill buttons, no drop shadows
+  const ring = '0 0 0 4px #E3F4FB';
   const clerkAppearance = {
     variables: { colorPrimary: '#133197', colorText: '#0B1B3F', colorTextSecondary: '#4A5B78', colorBackground: '#FFFFFF',
-      colorInputBackground: '#FFFFFF', colorDanger: '#B42318', colorSuccess: '#019832', borderRadius: '12px',
-      fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif', fontSize: '15px' },
+      colorInputBackground: '#FFFFFF', colorInputText: '#0B1B3F', colorNeutral: '#0B1B3F', colorDanger: '#B42318', colorSuccess: '#019832',
+      borderRadius: '12px', fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif', fontSize: '15px' },
     elements: {
-      rootBox: { width: '100%' }, cardBox: { width: '100%', boxShadow: 'none', border: 'none' },
-      card: { boxShadow: 'none', border: 'none', padding: '0', background: 'transparent' },
+      rootBox: { width: '100%' },
+      cardBox: { width: '100%', boxShadow: 'none', border: 'none', borderRadius: '0', overflow: 'visible' },
+      card: { boxShadow: 'none', border: 'none', padding: '2px', background: 'transparent', gap: '20px' },
       header: { display: 'none' }, footer: { display: 'none' },
-      formButtonPrimary: { borderRadius: '999px', minHeight: '48px', fontSize: '16px', fontWeight: 700, textTransform: 'none' },
-      socialButtonsBlockButton: { borderRadius: '999px', minHeight: '46px' },
-      formFieldInput: { borderRadius: '12px', minHeight: '46px' },
+      socialButtonsBlockButton: { borderRadius: '999px', minHeight: '48px', border: '1px solid #D6E4EF', boxShadow: 'none', background: '#FFFFFF',
+        '&:hover': { background: '#F2F7FB', borderColor: '#B9CCDC' }, '&:focus': { boxShadow: ring, borderColor: '#0198CC' } },
+      socialButtonsBlockButtonText: { fontWeight: 600, fontSize: '15px', color: '#0B1B3F' },
+      dividerLine: { background: '#D6E4EF' }, dividerText: { color: '#4A5B78', fontSize: '13px' },
+      formFieldLabel: { fontWeight: 600, fontSize: '14px', color: '#0B1B3F' },
+      formFieldInput: { borderRadius: '12px', minHeight: '48px', border: '1px solid #D6E4EF', boxShadow: 'none', fontSize: '16px', padding: '12px 14px',
+        '&:hover': { borderColor: '#B9CCDC' }, '&:focus': { borderColor: '#0198CC', boxShadow: ring } },
+      formFieldInputShowPasswordButton: { color: '#4A5B78' },
+      formButtonPrimary: { borderRadius: '999px', minHeight: '50px', fontSize: '16px', fontWeight: 700, textTransform: 'none',
+        background: '#133197', backgroundImage: 'none', boxShadow: 'none', border: 'none',
+        '&:hover': { background: '#0F2878' }, '&:focus': { boxShadow: ring } },
+      buttonArrowIcon: { display: 'none' },
+      otpCodeFieldInput: { border: '1px solid #D6E4EF', boxShadow: 'none', borderRadius: '12px' },
     },
   };
   let clerkMounted = null;

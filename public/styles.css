@@ -23,6 +23,7 @@ body { font-family: var(--font); background: var(--surface-muted); color: var(--
 a { color: var(--fast-sky-strong); }
 button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--fast-sky); outline-offset: 2px; }
+.l-clerk :focus-visible { outline: none; }
 .muted { color: var(--ink-muted); }
 .container { max-width: 760px; margin: 0 auto; padding: 16px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -225,7 +226,7 @@ details.group[open] > summary::after { transform: rotate(45deg) translate(-2px, 
 @keyframes shimmer { to { background-position: -200% 0; } }
 
 /* Inputs */
-input:not([type="radio"]):not([type="checkbox"]), textarea, select { border: 1px solid var(--line); background: var(--surface-raised); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 16px; width: 100%; }
+input:not([type="radio"]):not([type="checkbox"]):not(.cl-input), textarea, select { border: 1px solid var(--line); background: var(--surface-raised); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 16px; width: 100%; }
 .inline-form input, .srow input, .srow select { padding: 8px 10px; }
 .srow input, .srow select { height: 44px; box-sizing: border-box; }
 textarea { resize: vertical; }
@@ -343,8 +344,8 @@ body.landing-mode .container { max-width: 1120px; padding-top: 8px; }
 @keyframes swapIn { from { opacity: 0; transform: translateY(6px); } }
 .l-form.shake { animation: shake .35s; }
 @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
-.l-form input { font-size: 17px; padding: 13px 14px; border-width: 2px; border-radius: var(--radius-md); }
-.l-form input:focus { border-color: var(--fast-sky); outline: none; box-shadow: 0 0 0 4px var(--fast-sky-soft); }
+.l-form input:not(.cl-input) { font-size: 17px; padding: 13px 14px; border-width: 2px; border-radius: var(--radius-md); }
+.l-form input:not(.cl-input):focus { border-color: var(--fast-sky); outline: none; box-shadow: 0 0 0 4px var(--fast-sky-soft); }
 .l-pass { position: relative; }
 .l-pass input { padding-right: 72px; }
 .l-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: none; background: var(--surface-muted); color: var(--ink); font-weight: 700; font-size: 13px; border-radius: var(--radius-pill); padding: 0 12px; min-height: 36px; cursor: pointer; }
