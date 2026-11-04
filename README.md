@@ -66,7 +66,7 @@ Locally it uses a file instead of Redis. Put `ANTHROPIC_API_KEY=...` in a `.env`
 
 | File | What it does |
 | --- | --- |
-| `public/` | The whole frontend: `index.html`, `app.js`, `styles.css` (FAST NUCES brand tokens, light and dark mode) and the logo |
+| `public/` | The whole frontend: `index.html`, `app.js`, `styles.css` (FAST NUCES brand tokens, light theme only) and the logo |
 | `api/index.js` | Vercel serverless function; `vercel.json` sends every `/api/*` request here |
 | `lib/core.js` | All API logic, sample data and the Claude call |
 | `lib/auth.js` | Password hashing and signed session cookies |

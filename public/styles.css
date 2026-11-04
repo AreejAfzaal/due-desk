@@ -14,20 +14,6 @@
   --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fast-sky: #33B3EB; --fast-sky-strong: #5CC4F0; --fast-sky-soft: #0F2E4A;
-    --fast-navy: #A9BEFF; --fast-navy-soft: #16244F;
-    --fast-gold-soft: #3A3110; --gold-ink: #FECC00;
-    --fast-green: #3DBE6E; --success-ink: #3DBE6E; --success-soft: #11301E;
-    --danger: #F97066; --danger-soft: #3A1414;
-    --primary: #33B3EB; --on-primary: #0A1530;
-    --surface: #0A1530; --surface-muted: #0E1C3D; --surface-raised: #111F44; --line: #24365F;
-    --ink: #EAF2FA; --ink-muted: #A3B3CC;
-    --shadow-card: 0 1px 2px rgba(0,0,0,.3); --shadow-pop: 0 8px 24px rgba(0,0,0,.45);
-    color-scheme: dark;
-  }
-}
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
