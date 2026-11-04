@@ -203,6 +203,7 @@
     const view = $('#view');
     const landing = auth.checked && !user && !ui.browse;
     document.body.classList.toggle('landing-mode', landing);
+    if (!landing) teardownClerk();
     if (landing) {
       // build the landing once, then only patch its live bits so typing in the form is never lost
       if (!view.querySelector('.landing')) mountLanding(view);
@@ -705,16 +706,34 @@
     },
   };
   let clerkMounted = null;
+  // Sign-up and sign-in each get their own container, mounted once and then shown or hidden.
+  // (Swapping components inside one element races React's own cleanup.)
   function mountClerkForm() {
     const el = $('#l-clerk'), f = $('#form-landing');
     if (!el || !window.Clerk?.loaded) return;
+    if (!el.dataset.ready) { el.innerHTML = '<div data-clerk-slot="signup"></div><div data-clerk-slot="login" hidden></div>'; el.dataset.ready = '1'; }
     const mode = f.dataset.mode;
-    if (clerkMounted === mode && el.dataset.mounted) return;
-    try { if (clerkMounted === 'signup') Clerk.unmountSignUp(el); if (clerkMounted === 'login') Clerk.unmountSignIn(el); } catch {}
-    el.innerHTML = '';
-    const opts = { appearance: clerkAppearance, routing: 'virtual', fallbackRedirectUrl: location.origin + '/', signInFallbackRedirectUrl: location.origin + '/', signUpFallbackRedirectUrl: location.origin + '/' };
-    mode === 'signup' ? Clerk.mountSignUp(el, opts) : Clerk.mountSignIn(el, opts);
-    clerkMounted = mode; el.dataset.mounted = '1'; f.dataset.mounted = '1';
+    const slot = el.querySelector(`[data-clerk-slot="${mode}"]`);
+    el.querySelectorAll('[data-clerk-slot]').forEach((s) => { s.hidden = s !== slot; });
+    if (!slot.dataset.mounted) {
+      const opts = { appearance: clerkAppearance, routing: 'virtual', fallbackRedirectUrl: location.origin + '/', signInFallbackRedirectUrl: location.origin + '/', signUpFallbackRedirectUrl: location.origin + '/' };
+      mode === 'signup' ? Clerk.mountSignUp(slot, opts) : Clerk.mountSignIn(slot, opts);
+      slot.dataset.mounted = '1';
+    }
+    clerkMounted = mode; f.dataset.mounted = '1';
+  }
+
+  // Leaving the landing page: park Clerk's containers off-page and unmount them, so nothing else touches React's DOM
+  function teardownClerk() {
+    const slots = [...document.querySelectorAll('#l-clerk [data-clerk-slot][data-mounted]')];
+    if (!slots.length) return;
+    const holder = document.createElement('div'); holder.hidden = true; document.body.appendChild(holder);
+    slots.forEach((sl) => {
+      holder.appendChild(sl);
+      try { sl.dataset.clerkSlot === 'signup' ? Clerk.unmountSignUp(sl) : Clerk.unmountSignIn(sl); } catch {}
+    });
+    const lc = $('#l-clerk'); if (lc) delete lc.dataset.ready;
+    setTimeout(() => holder.remove(), 3000);
   }
 
   function loadScript(src, attrs = {}) {
