@@ -478,7 +478,7 @@
   const L = { words: ['quiz', 'assignment', 'lab report', 'viva', 'project', 'deadline'], wordIdx: 0, counted: false, front: 0, pingIdx: 0, timers: [] };
   // Example cards for the landing page. Always these, never real posts, so the stack is never empty or thin.
   const inH = (h) => new Date(Date.now() + h * 3600e3).toISOString();
-  const SAMPLE = [
+  const sampleCards = () => [
     { title: 'Quiz 3: Trees and heaps', course: 'Data Structures', type: 'Quiz', posted_by: 'Ali', due_at: inH(5) },
     { title: 'Assignment 2: Inheritance', course: 'Object Oriented Programming', type: 'Assignment', posted_by: 'Fatima', due_at: inH(30) },
     { title: 'Lab 5: Process scheduling', course: 'Operating Systems', type: 'Assignment', posted_by: 'Hamza', due_at: inH(52) },
@@ -486,7 +486,9 @@
     { title: 'Mid-term exam', course: 'Linear Algebra', type: 'Exam', posted_by: 'CR', due_at: inH(140) },
     { title: 'Viva: ER diagrams', course: 'Database Systems', type: 'Quiz', posted_by: 'Usman', due_at: inH(200) },
   ];
-  const upcomingForLanding = () => SAMPLE;
+  const upcomingForLanding = () => sampleCards();
+  // decorative countdown: a random time a few hours away, restarted with the next example when it runs out
+  const newTarget = () => Date.now() + (2 + Math.random() * 7) * 3600e3 + Math.random() * 3600e3;
 
   function mountLanding(view) {
     L.timers.forEach(clearInterval); L.timers = [];
@@ -499,7 +501,7 @@
         <span class="l-live"><span class="dot"></span><b id="l-online">1</b>&nbsp;online right now</span>
         <h1 class="l-title">Never miss a <span class="l-rotator"><span id="l-word">quiz</span></span><br>ever again.</h1>
         <p class="l-sub">One shared board for your whole batch. Someone posts a deadline, everyone sees it instantly. No more scrolling 400 WhatsApp messages to find the date.</p>
-        <button type="button" class="l-next" id="l-next" data-l-jump="signup"><span class="l-next-label">Example</span><span id="l-next-title"></span><span class="l-clock" id="l-clock">--:--:--</span></button>
+        <button type="button" class="l-next" id="l-next" data-l-jump="signup"><span class="l-next-label">Next up</span><span id="l-next-title"></span><span class="l-clock" id="l-clock">--:--:--</span></button>
       </div>
 
         <div class="l-auth" id="l-auth">
@@ -634,8 +636,10 @@
 
   function tickLanding() {
     if (!$('#l-clock')) { L.timers.forEach(clearInterval); L.timers = []; return; }
-    const next = upcomingForLanding()[0];
-    const ms = Math.max(0, new Date(next.due_at) - Date.now());
+    const cards = upcomingForLanding();
+    if (!L.target || L.target <= Date.now()) { L.target = newTarget(); L.nextIdx = ((L.nextIdx ?? -1) + 1) % cards.length; }
+    const next = cards[L.nextIdx];
+    const ms = Math.max(0, L.target - Date.now());
     const p = (n) => String(n).padStart(2, '0');
     const dd = Math.floor(ms / 86400e3), hh = Math.floor(ms / 3600e3) % 24, mm = Math.floor(ms / 60e3) % 60, ss = Math.floor(ms / 1e3) % 60;
     $('#l-clock').textContent = `${dd ? dd + 'd ' : ''}${p(hh)}:${p(mm)}:${p(ss)}`;
