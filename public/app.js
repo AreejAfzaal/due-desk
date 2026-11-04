@@ -4,7 +4,8 @@
 
   const TZ = 'Asia/Karachi';
   const TYPES = ['Quiz', 'Assignment', 'Project', 'Exam'];
-  const COURSE_COLORS = ['#0198CC', '#133197', '#019832', '#B42318', '#7A5C00', '#00729F', '#6B4BC2', '#C2410C'];
+  // distinct, readable subject colours; your own courses get them in order so no two of yours clash
+  const COURSE_COLORS = ['#0198CC', '#C2410C', '#019832', '#6B4BC2', '#B42318', '#133197', '#B98900', '#0F8B8D', '#C0267E', '#5C6E8F'];
   const AVATAR_COLORS = ['#133197', '#00729F', '#007A29', '#B42318', '#7A5C00', '#5B3FB0'];
 
   const state = { deadlines: [], projects: [], members: [], tasks: [], ai: false, loaded: false, error: null };
@@ -17,7 +18,12 @@
   const $ = (s, el = document) => el.querySelector(s);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const hash = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-  const courseColor = (c) => COURSE_COLORS[hash(c.toLowerCase()) % COURSE_COLORS.length];
+  const courseKey = (c) => String(c || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const courseColor = (c) => {
+    const k = courseKey(c), mine = (user?.courses || []).map(courseKey), i = mine.indexOf(k);
+    return COURSE_COLORS[(i >= 0 ? i : hash(k)) % COURSE_COLORS.length];
+  };
+  const dot = (c) => (c ? `<span class="course-dot" style="background:${courseColor(c)}" aria-hidden="true"></span>` : '');
   const avatarColor = (n) => AVATAR_COLORS[hash(n.toLowerCase()) % AVATAR_COLORS.length];
   const initials = (n) => n.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
@@ -255,14 +261,14 @@
           const isDone = done.has(x.id), late = !isDone && new Date(x.due_at) < Date.now();
           return `<label class="todo-row ${isDone ? 'done' : ''}">
           <input type="checkbox" class="check" data-done="${x.id}" ${isDone ? 'checked' : ''} aria-label="Mark ${esc(x.title)} done">
-          <span class="t"><strong>${esc(x.title)}</strong><span class="muted" style="font-size:13px">${esc(x.course)} · ${esc(x.type)} · ${fmtTime(x.due_at)}</span></span>
+          <span class="t"><strong>${esc(x.title)}</strong><span class="muted todo-meta">${dot(x.course)}${esc(x.course)} · ${esc(x.type)} · ${fmtTime(x.due_at)}</span></span>
           ${isDone ? '' : `<span class="todo-when ${late ? 'late' : ''}">${countdown(x.due_at)}</span>`}
         </label>`;
         }).join('')
       : `<div class="todo-empty">Nothing due ${esc(selLabel)}. Free time, enjoy it.</div>`);
 
     // grouped list
-    const filtered = all.filter((d) => ui.filter === 'All' || d.type === ui.filter);
+    const filtered = all.filter((d) => (ui.filter === 'All' || d.type === ui.filter) && (!ui.course || courseKey(d.course) === ui.course));
     const groups = [['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Next 7 days'], ['later', 'Later'], ['overdue', 'Past due'], ['done', 'Done']];
     const collapsible = new Set(['overdue', 'done']); // finished business stays out of the way until opened
     const byGroup = Object.fromEntries(groups.map(([k]) => [k, []]));
@@ -296,6 +302,9 @@
       <div class="chips" role="group" aria-label="Filter by type">
         ${['All', ...TYPES].map((t) => `<button type="button" class="chip" data-filter="${t}" aria-pressed="${ui.filter === t}">${t === 'All' ? 'All' : t + (t === 'Quiz' ? 'zes' : 's')}</button>`).join('')}
       </div>
+      ${(user?.courses || []).length > 1 ? `<div class="course-legend" role="group" aria-label="Filter by subject">
+        ${user.courses.map((c) => `<button type="button" class="course-chip" data-course-filter="${esc(courseKey(c))}" aria-pressed="${ui.course === courseKey(c)}">${dot(c)}${esc(c)}</button>`).join('')}
+      </div>` : ''}
       ${listHtml}`;
   }
 
@@ -329,7 +338,7 @@
       const { tasks, doneCount, pct } = projectStats(p);
       const members = live(state.members).filter((m) => m.project_id === p.id);
       return `<a class="pcard" href="#/projects/${p.id}">
-        <div class="meta" style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)">${esc(p.course || 'Group project')}${p.due_at ? ` · due ${esc(fmtDue(p.due_at))}` : ''}</div>
+        <div class="meta pmeta">${dot(p.course)}${esc(p.course || 'Group project')}${p.due_at ? ` · due ${esc(fmtDue(p.due_at))}` : ''}</div>
         <h3>${esc(p.title)}</h3>
         <div class="progress" aria-label="${pct}% done"><span style="width:${pct}%"></span></div>
         <div class="prow"><span>${doneCount} of ${tasks.length} tasks done</span><span class="avatars">${members.slice(0, 5).map((m) => avatar(m.name)).join('')}</span></div>
@@ -373,7 +382,7 @@
     }
 
     return `<a class="back" href="#/projects">← All projects</a>
-      <section class="hero"><div class="muted" style="font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase">${esc(p.course || 'Group project')}${p.due_at ? ` · due ${esc(fmtDue(p.due_at))}` : ''}</div>
+      <section class="hero"><div class="muted pmeta">${dot(p.course)}${esc(p.course || 'Group project')}${p.due_at ? ` · due ${esc(fmtDue(p.due_at))}` : ''}</div>
         <h1>${esc(p.title)}</h1>${p.description ? `<p>${esc(p.description)}</p>` : ''}</section>
 
       <div class="panel"><h2>Members</h2>
@@ -407,6 +416,7 @@
     try {
       if (t.dataset.day) { ui.day = t.dataset.day; return render(); }
       if (t.dataset.filter) { ui.filter = t.dataset.filter; return render(); }
+      if (t.dataset.courseFilter !== undefined) { ui.course = ui.course === t.dataset.courseFilter ? null : t.dataset.courseFilter; return render(); }
       if (t.dataset.delDeadline) { const id = t.dataset.delDeadline; return deleteLater(id, state.deadlines.find((x) => x.id === id)?.title || 'deadline', `/api/deadlines/${id}`); }
       if (t.dataset.delTask) { const id = t.dataset.delTask; return deleteLater(id, state.tasks.find((x) => x.id === id)?.title || 'task', `/api/tasks/${id}`); }
       if (t.dataset.delMember) { const id = t.dataset.delMember; return deleteLater(id, state.members.find((x) => x.id === id)?.name || 'member', `/api/members/${id}`); }
