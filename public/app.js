@@ -8,7 +8,7 @@
   const AVATAR_COLORS = ['#133197', '#00729F', '#007A29', '#B42318', '#7A5C00', '#5B3FB0'];
 
   const state = { deadlines: [], projects: [], members: [], tasks: [], ai: false, loaded: false, error: null };
-  const ui = { filter: 'All', day: null, suggestions: null, suggestLoading: false, suggestError: null, offline: false, newIds: new Set() };
+  const ui = { openGroups: new Set(), filter: 'All', day: null, suggestions: null, suggestLoading: false, suggestError: null, offline: false, newIds: new Set() };
   // signed-in Google user from the session cookie: { sub, name, email, picture } or null
   let user = null, me = '';
   const auth = { problem: null };
@@ -145,8 +145,15 @@
       x.addEventListener('click', close);
       el.appendChild(x);
     } else setTimeout(close, action ? 10000 : 4500);
-    $('#toasts').appendChild(el);
+    // an open modal makes the rest of the page inert, so toasts move inside it to stay visible and clickable
+    const box = $('#toasts'), host = document.querySelector('dialog[open]') || document.body;
+    if (box.parentElement !== host) host.appendChild(box);
+    box.appendChild(el);
   }
+  document.querySelectorAll('dialog').forEach((d) => d.addEventListener('close', () => {
+    const box = $('#toasts');
+    if (box.parentElement === d) document.body.appendChild(box);
+  }));
 
   // deletes wait 10 s so a mis-tap can be undone; anything still waiting is sent if the page closes
   const pendingDeletes = new Map();
@@ -173,7 +180,11 @@
     const sel = focusKey && 'selectionStart' in a ? [a.selectionStart, a.selectionEnd] : null;
 
     const route = location.hash.replace(/^#/, '') || '/';
-    document.querySelectorAll('.tabs a').forEach((t) => t.classList.toggle('active', (t.dataset.tab === 'projects') === route.startsWith('/projects')));
+    const tab = route.startsWith('/projects') ? 'projects' : route.startsWith('/todo') ? 'todo' : 'home';
+    document.querySelectorAll('.tabs a').forEach((t) => { t.classList.toggle('active', t.dataset.tab === tab); t.toggleAttribute('aria-current', t.dataset.tab === tab); });
+    const todayLeft = live(state.deadlines).filter((d) => !done.has(d.id) && dayKey(d.due_at) === dayKey(Date.now())).length;
+    $('#todo-count').textContent = todayLeft || '';
+    $('#todo-count').hidden = !todayLeft;
     $('#me-btn').innerHTML = user ? `${avatar(user.name)}<span>${esc(user.name.split(' ')[0])}</span>` : 'Sign in';
     $('#me-btn').setAttribute('aria-label', user ? `Your account, ${user.name}` : 'Sign in');
     $('#fab').hidden = route.startsWith('/projects/');
@@ -184,7 +195,7 @@
     else if (!state.loaded) view.innerHTML = `<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
     else if (route.startsWith('/projects/')) view.innerHTML = projectView(route.split('/')[2]);
     else if (route.startsWith('/projects')) view.innerHTML = projectsView();
-    else view.innerHTML = homeView();
+    else view.innerHTML = homeView(tab);
 
     if (focusKey) {
       const el = view.querySelector(`[data-key="${CSS.escape(focusKey)}"]`);
@@ -192,7 +203,8 @@
     }
   }
 
-  function homeView() {
+  // tab: 'home' (shared deadlines board) or 'todo' (your personal checklist by day)
+  function homeView(tab = 'home') {
     const all = live(state.deadlines).sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
     const upcoming = all.filter((d) => !done.has(d.id) && new Date(d.due_at) >= Date.now());
     const thisWeek = upcoming.filter((d) => dayDiff(d.due_at) <= 6).length;
@@ -213,36 +225,52 @@
       const name = i === 0 ? 'Today' : new Date(d.d).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short' });
       const num = new Date(d.d).toLocaleDateString('en-US', { timeZone: TZ, day: 'numeric' });
       return `<button type="button" class="day" data-day="${d.key}" aria-pressed="${d.key === ui.day}" aria-label="${esc(name)} ${num}, ${open} due">
-        <span class="dname">${esc(name)}</span><span class="dnum">${num}</span><span class="dcount ${open ? 'has' : ''}">${open}</span></button>`;
+        <span class="dname">${esc(name)}</span><span class="dnum">${num}</span><span class="dcount ${open ? 'has' : 'zero'}" aria-hidden="true">${open}</span></button>`;
     }).join('');
 
-    const todo = sel.items.length
-      ? sel.items.map((x) => `<label class="todo-row ${done.has(x.id) ? 'done' : ''}">
-          <input type="checkbox" class="check" data-done="${x.id}" ${done.has(x.id) ? 'checked' : ''} aria-label="Mark ${esc(x.title)} done">
+    const left = sel.items.filter((x) => !done.has(x.id)).length;
+    const todoHead = `<div class="todo-head"><h3>Due ${sel.key === days[0].key || sel.key === days[1].key ? '' : 'on '}${esc(selLabel)}</h3><span>${sel.items.length ? `${left} left` : 'All clear'}</span></div>`;
+    const todo = todoHead + (sel.items.length
+      ? sel.items.map((x) => {
+          const isDone = done.has(x.id), late = !isDone && new Date(x.due_at) < Date.now();
+          return `<label class="todo-row ${isDone ? 'done' : ''}">
+          <input type="checkbox" class="check" data-done="${x.id}" ${isDone ? 'checked' : ''} aria-label="Mark ${esc(x.title)} done">
           <span class="t"><strong>${esc(x.title)}</strong><span class="muted" style="font-size:13px">${esc(x.course)} · ${esc(x.type)} · ${fmtTime(x.due_at)}</span></span>
-        </label>`).join('')
-      : `<div class="todo-empty">Nothing due ${esc(selLabel)}. Free time, enjoy it.</div>`;
+          ${isDone ? '' : `<span class="todo-when ${late ? 'late' : ''}">${countdown(x.due_at)}</span>`}
+        </label>`;
+        }).join('')
+      : `<div class="todo-empty">Nothing due ${esc(selLabel)}. Free time, enjoy it.</div>`);
 
     // grouped list
     const filtered = all.filter((d) => ui.filter === 'All' || d.type === ui.filter);
-    const groups = [['overdue', 'Overdue'], ['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Next 7 days'], ['later', 'Later'], ['done', 'Done']];
+    const groups = [['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Next 7 days'], ['later', 'Later'], ['overdue', 'Past due'], ['done', 'Done']];
+    const collapsible = new Set(['overdue', 'done']); // finished business stays out of the way until opened
     const byGroup = Object.fromEntries(groups.map(([k]) => [k, []]));
     filtered.forEach((d) => byGroup[urgency(d).key].push(d));
     const listHtml = filtered.length
-      ? groups.filter(([k]) => byGroup[k].length).map(([k, label]) =>
-          `<h2 class="section-title">${label} <span class="count">${byGroup[k].length}</span></h2><div class="list">${byGroup[k].map(card).join('')}</div>`).join('')
+      ? groups.filter(([k]) => byGroup[k].length).map(([k, label]) => {
+          const title = `${label} <span class="count">${byGroup[k].length}</span>`, list = `<div class="list">${byGroup[k].map(card).join('')}</div>`;
+          return collapsible.has(k)
+            ? `<details class="group" data-group="${k}" ${ui.openGroups.has(k) ? 'open' : ''}><summary class="section-title st-${k}">${title}</summary>${list}</details>`
+            : `<h2 class="section-title st-${k}">${title}</h2>${list}`;
+        }).join('')
       : all.length
         ? `<div class="empty" style="margin-top:16px"><strong>No ${esc(ui.filter.toLowerCase())}${ui.filter === 'Quiz' ? 'zes' : 's'} on the board</strong><button type="button" class="btn small" data-filter="All" style="margin-top:10px">Show all deadlines</button></div>`
         : `<div class="empty" style="margin-top:16px"><strong>No deadlines yet</strong>Post the first one with the + button.</div>`;
+
+    if (tab === 'todo') return `
+      <section class="hero">
+        <h1>Your to-do</h1>
+        <p>Pick a day and tick things off as you finish them. Only you see your ticks.</p>
+      </section>
+      <div class="daystrip" role="group" aria-label="Pick a day" style="margin-top:20px">${strip}</div>
+      <div class="todo">${todo}</div>`;
 
     return `
       <section class="hero">
         <h1>What's due, ${esc(first)}?</h1>
         <p>${upcoming.length ? `${thisWeek} due in the next 7 days · ${upcoming.length} upcoming in total` : 'Nothing upcoming. Post a deadline to start the board.'}</p>
       </section>
-      <h2 class="section-title">Your to-do</h2>
-      <div class="daystrip" role="group" aria-label="Pick a day">${strip}</div>
-      <div class="todo">${todo}</div>
       <div class="chips" role="group" aria-label="Filter by type">
         ${['All', ...TYPES].map((t) => `<button type="button" class="chip" data-filter="${t}" aria-pressed="${ui.filter === t}">${t === 'All' ? 'All' : t + (t === 'Quiz' ? 'zes' : 's')}</button>`).join('')}
       </div>
@@ -252,7 +280,7 @@
   function card(d) {
     const u = urgency(d);
     const isDone = done.has(d.id);
-    return `<article class="card ${ui.newIds.has(d.id) ? 'new' : ''} ${isDone ? 'is-done' : ''}">
+    return `<article class="card u-${u.key} ${ui.newIds.has(d.id) ? 'new' : ''} ${isDone ? 'is-done' : ''}">
       <input type="checkbox" class="check" data-done="${d.id}" ${isDone ? 'checked' : ''} aria-label="Mark ${esc(d.title)} done">
       <div class="body">
         <div class="meta"><span class="course-dot" style="background:${courseColor(d.course)}"></span>${esc(d.course)} · ${esc(d.type)}</div>
@@ -370,6 +398,11 @@
       if (t.hasAttribute('data-close')) return t.closest('dialog').close();
     } catch (err) { toast(err.message, true); }
   });
+
+  document.addEventListener('toggle', (e) => {
+    const g = e.target.dataset && e.target.dataset.group;
+    if (g) e.target.open ? ui.openGroups.add(g) : ui.openGroups.delete(g);
+  }, true);
 
   document.addEventListener('change', async (e) => {
     const t = e.target;
@@ -534,5 +567,5 @@
 
   render();
   const whoAmI = api('/api/auth/me').then((r) => { auth.problem = r.problem; if (r.user) setUser(r.user); return r.user; }).catch(() => null);
-  Promise.all([load(), whoAmI]).then(([, u]) => { connect(); if (!u) askSignIn(); });
+  Promise.all([load(), whoAmI]).then(() => connect());
 })();

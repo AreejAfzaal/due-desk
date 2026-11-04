@@ -58,7 +58,7 @@ Locally it uses a file instead of Redis. Put `ANTHROPIC_API_KEY=...` in a `.env`
 - **Accounts:** anyone can browse; posting and editing need an account (email + password, hashed with scrypt). Posts show the account's name, and only the poster can delete a deadline. Sessions last 30 days in an HttpOnly cookie.
 - **Post a deadline:** title, course, type, due date and notes.
 - **Live dashboard:** sorted by due date and grouped into Overdue / Today / Tomorrow / This week / Later / Done, with countdowns. New posts animate in on every screen with a toast ("Ali just posted…"). The header shows how many people are online.
-- **Daily to-do:** a 7-day strip; tap a day to see what's due as a checklist. Ticking items off is personal.
+- **To-do tab:** a 7-day strip; tap a day to see what's due as a checklist. Ticking items off is personal.
 - **Group projects:** create a project, add members, add tasks manually, assign them, tick them done, with a shared progress bar.
 - **AI task breakdown:** Claude suggests 4 to 7 tasks from the project brief. Edit, remove or assign them before adding.
 
