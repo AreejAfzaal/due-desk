@@ -149,13 +149,14 @@ details.group[open] > summary::after { transform: rotate(45deg) translate(-2px, 
 .btn:disabled { opacity: .6; cursor: progress; }
 .icon-btn { border: none; background: transparent; color: var(--ink-muted); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; display: grid; place-items: center; flex-shrink: 0; }
 .icon-btn:hover { background: var(--surface-muted); color: var(--ink); }
-.fab { position: fixed; right: max(16px, calc(50vw - 364px)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 20; background: var(--primary); color: var(--on-primary); border: none; border-radius: var(--radius-pill); padding: 0 22px; height: 56px; font-size: 16px; font-weight: 800; box-shadow: var(--shadow-pop); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.fab { position: fixed; right: max(16px, calc(50vw - 364px)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 20; background: var(--primary); color: var(--on-primary); border: none; border-radius: var(--radius-pill); padding: 0 22px; height: 56px; font-size: 16px; font-weight: 800; box-shadow: var(--shadow-pop); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .fab[hidden] { display: none; }
-.fab-plus { font-size: 22px; line-height: 1; }
+.fab-plus { width: 20px; height: 20px; flex-shrink: 0; display: block; }
+.fab-label { line-height: 1; }
 /* Until there's a margin to sit in, a round + button covers far less of the card underneath */
 @media (max-width: 1239px) {
   .fab { width: 56px; padding: 0; justify-content: center; }
-  .fab-plus { font-size: 28px; }
+  .fab-plus { width: 24px; height: 24px; }
   .fab-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 }
 /* Wide screens: sit in the margin beside the column instead of on top of it */
