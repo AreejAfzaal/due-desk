@@ -49,6 +49,7 @@
     <label class="field" data-signup-only><span>Your name</span><input name="name" maxlength="40" autocomplete="name" placeholder="Shown on what you post"></label>
     <label class="field"><span>Email</span><input name="email" type="email" maxlength="254" autocomplete="email" required></label>
     <label class="field"><span>Password</span><input name="password" type="password" minlength="8" maxlength="200" autocomplete="current-password" required><small class="muted" data-signup-only>At least 8 characters.</small></label>
+    <div class="field" data-signup-only><span class="field-label">Your courses</span><div class="cp" id="auth-picker"></div></div>
     <p class="form-error" id="signin-error" hidden></p>
     <button type="submit" class="btn primary welcome-btn" id="auth-submit">Let's go →</button>
     <p class="auth-switch"><span id="auth-switch-text">New here?</span> <button type="button" class="linkish" id="auth-switch">Make an account</button></p>
@@ -61,7 +62,9 @@
   <div class="sheet-body">
     <div class="sheet-head"><h2>Your account</h2><button type="button" class="icon-btn" data-close aria-label="Close">✕</button></div>
     <div class="account-row"><span id="account-avatar"></span><span><strong id="account-name"></strong><span class="muted" id="account-email"></span></span></div>
-    <div class="sheet-actions"><button type="button" class="btn" id="signout-btn">Sign out</button></div>
+    <div class="field" style="margin-top:16px"><span class="field-label">Your courses</span><small class="muted">You see deadlines for these courses, plus anything in your group projects.</small><div class="cp" id="account-picker"></div></div>
+    <p class="form-error" id="account-error" hidden></p>
+    <div class="sheet-actions"><button type="button" class="btn" id="signout-btn">Sign out</button><button type="button" class="btn primary" id="save-courses">Save courses</button></div>
   </div>
 </dialog>
 
@@ -70,7 +73,8 @@
   <form id="form-deadline" class="sheet-body">
     <div class="sheet-head"><h2>Add a deadline</h2><button type="button" class="icon-btn" data-close aria-label="Close">✕</button></div>
     <label class="field"><span>Title</span><input name="title" required maxlength="120" placeholder="e.g. Quiz 3: Trees and heaps"></label>
-    <label class="field"><span>Course</span><input name="course" required maxlength="80" list="course-list" placeholder="e.g. Data Structures"></label>
+    <label class="field"><span>Course</span><select name="course" required id="deadline-course"></select><small class="muted">Everyone enrolled in this course will see it.</small></label>
+    <label class="field" id="deadline-project-field"><span>Group project <em>(optional)</em></span><select name="project_id" id="deadline-project"></select><small class="muted">Also shows it to everyone in that group.</small></label>
     <datalist id="course-list"></datalist>
     <fieldset class="field">
       <legend>Type</legend>
@@ -84,7 +88,7 @@
     <label class="field"><span>Due</span><input name="due_at" type="datetime-local" required></label>
     <label class="field"><span>Notes <em>(optional)</em></span><textarea name="notes" rows="2" maxlength="500" placeholder="Syllabus, room, submission link…"></textarea></label>
     <p class="form-error" hidden></p>
-    <div class="sheet-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Post to everyone</button></div>
+    <div class="sheet-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Post deadline</button></div>
   </form>
 </dialog>
 
@@ -98,8 +102,9 @@
     <label class="field"><span>What do you have to build?</span><textarea name="description" rows="3" maxlength="1000" placeholder="Paste the project brief. The AI uses this to suggest tasks."></textarea></label>
     <div class="field">
       <label for="member-input">Group members</label>
-      <div class="chips-input" id="member-chips"><input id="member-input" placeholder="Type a name, press Enter" maxlength="40"></div>
-      <small class="muted">You're added automatically.</small>
+      <div class="chips-input" id="member-chips"><input id="member-input" placeholder="Search classmates by name" maxlength="40" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="member-results"></div>
+      <div class="people-results" id="member-results" role="listbox" hidden></div>
+      <small class="muted">Only people who have signed up show up. You're added automatically.</small>
     </div>
     <p class="form-error" hidden></p>
     <div class="sheet-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Create project</button></div>

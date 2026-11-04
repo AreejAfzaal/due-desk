@@ -206,6 +206,14 @@
     else if (route.startsWith('/projects')) view.innerHTML = projectsView();
     else view.innerHTML = homeView(tab);
 
+    const addInput = view.querySelector('#add-member');
+    if (addInput) {
+      const pid = addInput.closest('.member-add').dataset.project;
+      peopleSearch(addInput, view.querySelector('#add-member-results'), async (person) => {
+        try { await mutate(`/api/projects/${pid}/members`, { method: 'POST', body: { user_id: person.id } }); toast(`${person.name} added to the group`); }
+        catch (ex) { toast(ex.message, true); }
+      }, () => state.members.filter((m) => m.project_id === pid).map((m) => m.user_id));
+    }
     if (focusKey) {
       const el = view.querySelector(`[data-key="${CSS.escape(focusKey)}"]`);
       if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(...sel); } catch {} }
@@ -265,7 +273,9 @@
         }).join('')
       : all.length
         ? `<div class="empty" style="margin-top:16px"><strong>No ${esc(ui.filter.toLowerCase())}${ui.filter === 'Quiz' ? 'zes' : 's'} on the board</strong><button type="button" class="btn small" data-filter="All" style="margin-top:10px">Show all deadlines</button></div>`
-        : `<div class="empty" style="margin-top:16px"><strong>No deadlines yet</strong>Post the first one with the + button.</div>`;
+        : (user && !(user.courses || []).length
+          ? `<div class="empty" style="margin-top:16px"><strong>Your board is empty</strong>Pick your courses and deadlines for them will show up here.<br><button type="button" class="btn small primary" data-open-account style="margin-top:12px">Pick my courses</button></div>`
+          : `<div class="empty" style="margin-top:16px"><strong>All quiet for now</strong>Nothing has been posted for ${esc((user?.courses || []).slice(0, 3).join(', '))}${(user?.courses || []).length > 3 ? ' and more' : ''} or your group projects yet. Be the first: tap + to post a deadline.</div>`);
 
     if (tab === 'todo') return `
       <section class="hero">
@@ -323,7 +333,7 @@
       </a>`;
     }).join('');
     return `<section class="hero"><h1>Group projects</h1><p>Split the work, see who's doing what, and stop chasing people on WhatsApp.</p></section>
-      <div class="list" style="margin-top:16px">${cards || `<div class="empty"><strong>No group projects yet</strong>Start one with “+ New project”.</div>`}</div>`;
+      <div class="list" style="margin-top:16px">${cards || `<div class="empty"><strong>No group projects yet</strong>Start one with “+ New project”, or ask a groupmate to add you.</div>`}</div>`;
   }
 
   function projectView(pid) {
@@ -363,7 +373,7 @@
 
       <div class="panel"><h2>Members</h2>
         <div class="members">${members.map((m) => `<span class="member">${avatar(m.name)}${esc(m.name)}<button type="button" data-del-member="${m.id}" aria-label="Remove ${esc(m.name)}">✕</button></span>`).join('') || '<span class="muted">No members yet.</span>'}</div>
-        <form class="inline-form" data-add-member="${p.id}"><label class="sr-only" for="add-member">Add a member</label><input id="add-member" data-key="add-member" placeholder="Add a member by name" maxlength="40" required><button class="btn small" type="submit">Add</button></form>
+        <div class="member-add" data-project="${p.id}"><label class="sr-only" for="add-member">Add a member</label><input id="add-member" data-key="add-member" placeholder="Add a classmate who has signed up" maxlength="40" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="add-member-results"><div class="people-results" id="add-member-results" role="listbox" hidden></div></div>
       </div>
 
       <div class="panel"><h2>Tasks</h2>
@@ -435,14 +445,13 @@
 
   document.addEventListener('submit', async (e) => {
     const f = e.target;
-    if (f.dataset.addMember || f.dataset.addTask) {
+    if (f.dataset.addTask) {
       e.preventDefault();
       const input = f.querySelector('input');
       const value = input.value.trim();
       if (!value) return;
       try {
-        if (f.dataset.addMember) await mutate(`/api/projects/${f.dataset.addMember}/members`, { method: 'POST', body: { name: value } });
-        else await mutate('/api/tasks', { method: 'POST', body: { project_id: f.dataset.addTask, title: value, source: 'manual' } });
+        await mutate('/api/tasks', { method: 'POST', body: { project_id: f.dataset.addTask, title: value, source: 'manual' } });
         const el = $(`#${input.id}`); if (el) { el.value = ''; el.focus(); }
       } catch (err) { toast(err.message, true); }
     }
@@ -472,7 +481,7 @@
         <span class="l-live"><span class="dot"></span><b id="l-online">1</b>&nbsp;online right now</span>
         <h1 class="l-title">Never miss a <span class="l-rotator"><span id="l-word">quiz</span></span><br>ever again.</h1>
         <p class="l-sub">One shared board for your whole batch. Someone posts a deadline, everyone sees it instantly. No more scrolling 400 WhatsApp messages to find the date.</p>
-        <button type="button" class="l-next" id="l-next" data-l-jump="signup"><span class="l-next-label">Next up</span><span id="l-next-title"></span><span class="l-clock" id="l-clock">--:--:--</span></button>
+        <button type="button" class="l-next" id="l-next" data-l-jump="signup"><span class="l-next-label">Example</span><span id="l-next-title"></span><span class="l-clock" id="l-clock">--:--:--</span></button>
       </div>
 
         <div class="l-auth" id="l-auth">
@@ -493,21 +502,20 @@
               <div class="l-meter l-signup-only" aria-hidden="true"><span id="l-meter-bar"></span></div>
               <small class="muted l-signup-only" id="l-meter-text">At least 8 characters.</small>
             </div>
+            <div class="field l-signup-only"><span class="field-label">Your courses</span><div class="cp" id="l-picker"></div></div>
             <p class="form-error" id="l-error" hidden></p>
             <button type="submit" class="btn primary welcome-btn l-submit" id="l-submit">Create account →</button>
           </form>
-          <button type="button" class="l-peek" data-peek>Just lurking? Peek at the board →</button>
         </div>
 
         <div class="l-preview" id="l-preview" aria-hidden="true">
           <div class="l-stack" id="l-stack"></div>
-          <div class="l-ping" id="l-ping"><span class="tdot"></span><span id="l-ping-text"></span></div>
-          <p class="l-hint">Tap the cards</p>
+          <p class="l-hint">What your board looks like · tap the cards</p>
         </div>
       </div>
 
       <div class="l-stats">
-        <div class="l-stat"><b data-count="deadlines">0</b><span>deadlines on the board</span></div>
+        <div class="l-stat"><b data-count="deadlines">0</b><span>deadlines posted so far</span></div>
         <div class="l-stat"><b data-count="projects">0</b><span>group projects</span></div>
         <div class="l-stat"><b data-count="online">0</b><span>people online now</span></div>
       </div>
@@ -530,9 +538,6 @@
     }, 2200));
     // live countdown + online mirror
     L.timers.push(setInterval(tickLanding, 1000));
-    // "X just posted" ping
-    L.timers.push(setInterval(ping, 3800));
-    ping();
     // parallax blobs + tilting card stack
     if (!reduceMotion) {
       $('.landing').addEventListener('pointermove', (e) => {
@@ -560,6 +565,7 @@
       const f = e.target;
       await submitAuth(f, f.dataset.mode === 'signup', $('#l-error'), $('#l-submit'), () => confetti($('#l-submit')));
     });
+    initPicker($('#l-picker'));
     if (auth.problem) { $('#l-error').textContent = auth.problem; $('#l-error').hidden = false; }
     tickLanding();
   }
@@ -608,14 +614,6 @@
     }).join('');
   }
 
-  function ping() {
-    const el = $('#l-ping'); if (!el) return;
-    const list = upcomingForLanding();
-    const d = list[L.pingIdx++ % list.length];
-    $('#l-ping-text').textContent = `${d.posted_by} just posted: ${d.title}`;
-    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
-  }
-
   function tickLanding() {
     if (!$('#l-clock')) { L.timers.forEach(clearInterval); L.timers = []; return; }
     const next = upcomingForLanding()[0];
@@ -630,7 +628,7 @@
 
   function updateLanding() {
     if (!$('.landing')) return;
-    const counts = { deadlines: live(state.deadlines).length, projects: state.projects.length, online: +($('#presence-count').textContent || 1) };
+    const counts = { deadlines: state.stats?.deadlines ?? 0, projects: state.stats?.projects ?? 0, online: +($('#presence-count').textContent || 1) };
     document.querySelectorAll('[data-count]').forEach((el) => {
       const target = counts[el.dataset.count];
       if (!L.counted && state.loaded && !reduceMotion) {
@@ -665,7 +663,7 @@
     if (m) return setLandingMode(m.dataset.lMode);
     const j = e.target.closest('[data-l-jump]');
     if (j) { setLandingMode(j.dataset.lJump); $('#l-auth').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-    if (e.target.closest('[data-peek]')) { ui.browse = true; L.timers.forEach(clearInterval); L.timers = []; render(); window.scrollTo(0, 0); toast('Browsing as a guest. Sign in anytime to post.'); }
+    if (e.target.closest('[data-open-account]')) return openAccount();
   });
 
   // ---------- dialogs ----------
@@ -675,11 +673,13 @@
     if (signup && !f.name.value.trim()) return fail('Enter your name.', f.name);
     if (!f.email.validity.valid || !f.email.value) return fail('Enter a valid email address.', f.email);
     if (signup ? f.password.value.length < 8 : !f.password.value) return fail(signup ? 'Use a password of at least 8 characters.' : 'Enter your password.', f.password);
+    const courses = picked(f.querySelector('.cp'));
+    if (signup && !courses.length) return fail('Pick at least one course so your board can fill up.', f.querySelector('.cp-search'));
     const label = btn.textContent;
     btn.disabled = true; err.hidden = true; btn.textContent = signup ? 'Creating your account…' : 'Signing you in…';
     try {
       const r = await api(signup ? '/api/auth/signup' : '/api/auth/login', { method: 'POST',
-        body: { name: f.name.value, email: f.email.value, password: f.password.value } });
+        body: { name: f.name.value, email: f.email.value, password: f.password.value, courses } });
       if (onSuccess) onSuccess();
       f.reset();
       setUser(r.user);
@@ -713,6 +713,7 @@
     }
     const d = $('#dlg-signin');
     setAuthMode(mode);
+    if (!$('#auth-picker')._picked) initPicker($('#auth-picker'));
     if (auth.problem) { $('#signin-error').textContent = auth.problem; $('#signin-error').hidden = false; }
     if (!d.open) d.showModal();
     (mode === 'signup' ? $('#form-auth').name : $('#form-auth').email).focus();
@@ -727,6 +728,8 @@
     $('#account-avatar').innerHTML = avatar(user.name);
     $('#account-name').textContent = user.name;
     $('#account-email').textContent = user.email;
+    $('#account-error').hidden = true;
+    initPicker($('#account-picker'), user.courses || []);
     $('#dlg-account').showModal();
   }
   $('#signout-btn').addEventListener('click', async () => {
@@ -738,16 +741,75 @@
     toast('Signed out');
   });
 
+  // ---------- course picker (sign-up and account) ----------
+  let catalog = [];
+  function initPicker(el, selected = []) {
+    if (!el) return;
+    el._picked = new Set(selected);
+    el._custom = selected.filter((c) => !catalog.some((x) => x.toLowerCase() === c.toLowerCase()));
+    el._q = '';
+    el.innerHTML = `<input type="search" class="cp-search" placeholder="Search, or type a course and press Enter" aria-label="Search courses" autocomplete="off">
+      <div class="cp-chips" role="group" aria-label="Courses"></div><small class="cp-count muted"></small>`;
+    el.querySelector('.cp-search').addEventListener('input', (e) => { el._q = e.target.value.trim().toLowerCase(); drawPicker(el); });
+    el.querySelector('.cp-search').addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const v = e.target.value.trim().replace(/\s+/g, ' ').slice(0, 80);
+      if (!v) return;
+      const match = [...catalog, ...el._custom].find((c) => c.toLowerCase() === v.toLowerCase());
+      if (match) el._picked.add(match); else { el._custom.push(v); el._picked.add(v); }
+      e.target.value = ''; el._q = ''; drawPicker(el);
+    });
+    el.querySelector('.cp-chips').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-course]'); if (!b) return;
+      const c = b.dataset.course;
+      el._picked.has(c) ? el._picked.delete(c) : el._picked.add(c);
+      const err = el.closest('form, .sheet-body')?.querySelector('.form-error'); if (err) err.hidden = true;
+      drawPicker(el);
+    });
+    drawPicker(el);
+  }
+  function drawPicker(el) {
+    const all = [...el._custom, ...catalog];
+    const shown = all.filter((c) => !el._q || c.toLowerCase().includes(el._q));
+    // picked first so they're easy to see and undo
+    shown.sort((a, b) => (el._picked.has(b) - el._picked.has(a)));
+    el.querySelector('.cp-chips').innerHTML = shown.map((c) => `<button type="button" class="cp-chip" data-course="${esc(c)}" aria-pressed="${el._picked.has(c)}">${el._picked.has(c) ? '✓ ' : ''}${esc(c)}</button>`).join('')
+      || `<span class="muted" style="font-size:13px">No match. Press Enter to add “${esc(el.querySelector('.cp-search').value.trim())}”.</span>`;
+    const n = el._picked.size;
+    el.querySelector('.cp-count').textContent = n ? `${n} course${n === 1 ? '' : 's'} picked` : 'Pick the courses you are taking this semester.';
+  }
+  const picked = (el) => (el && el._picked ? [...el._picked] : []);
+
+  // ---------- account: edit courses ----------
+  $('#save-courses').addEventListener('click', async () => {
+    const err = $('#account-error'), list = picked($('#account-picker'));
+    err.hidden = true;
+    if (!list.length) { err.textContent = 'Pick at least one course.'; err.hidden = false; return; }
+    try {
+      const r = await api('/api/auth/me', { method: 'PATCH', body: { courses: list } });
+      user = { ...user, courses: r.user.courses };
+      $('#dlg-account').close();
+      await load();
+      toast('Courses saved. Your board is updated.');
+    } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+  });
+
   function fillCourses() {
-    const courses = [...new Set([...state.deadlines.map((d) => d.course), ...state.projects.map((p) => p.course)].filter(Boolean))].sort();
+    const courses = [...new Set([...(user?.courses || []), ...state.projects.map((p) => p.course)].filter(Boolean))].sort();
     $('#course-list').innerHTML = courses.map((c) => `<option value="${esc(c)}">`).join('');
   }
   function openDeadline() {
     if (!user) return askSignIn();
+    if (!user.courses || !user.courses.length) { openAccount(); toast('Pick your courses first, then post.'); return; }
     const f = $('#form-deadline'); f.reset(); f.querySelector('.form-error').hidden = true;
+    $('#deadline-course').innerHTML = user.courses.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    const projects = state.projects;
+    $('#deadline-project-field').hidden = !projects.length;
+    $('#deadline-project').innerHTML = `<option value="">None</option>` + projects.map((p) => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
     const d = new Date(Date.now() + 86400000); d.setHours(23, 59, 0, 0);
     f.due_at.value = toLocalInput(d);
-    fillCourses(); $('#dlg-deadline').showModal(); f.title.focus();
+    $('#dlg-deadline').showModal(); f.title.focus();
   }
   $('#form-deadline').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -755,21 +817,50 @@
     btn.disabled = true; err.hidden = true;
     try {
       await mutate('/api/deadlines', { method: 'POST', body: { title: f.title.value, course: f.course.value, type: f.type.value,
-        due_at: new Date(f.due_at.value).toISOString(), notes: f.notes.value } });
+        project_id: f.project_id.value || null, due_at: new Date(f.due_at.value).toISOString(), notes: f.notes.value } });
       $('#dlg-deadline').close();
       if (location.hash && location.hash !== '#/') location.hash = '#/';
-      toast('Posted. Everyone can see it now.');
+      toast(`Posted. Everyone in ${f.course.value} can see it now.`);
     } catch (ex) { err.textContent = ex.message; err.hidden = false; }
     btn.disabled = false;
   });
+
+  // ---------- people search (only signed-up users) ----------
+  function peopleSearch(input, results, onPick, exclude = () => []) {
+    let timer, seq = 0;
+    const close = () => { results.hidden = true; input.setAttribute('aria-expanded', 'false'); };
+    const run = async () => {
+      const my = ++seq, q = input.value.trim();
+      try {
+        const r = await api(`/api/users?q=${encodeURIComponent(q)}`);
+        if (my !== seq) return;
+        const skip = new Set(exclude());
+        const list = r.users.filter((u) => !skip.has(u.id));
+        results.innerHTML = list.length
+          ? list.map((u) => `<button type="button" role="option" class="person" data-pick="${u.id}" data-name="${esc(u.name)}">${avatar(u.name)}<span><strong>${esc(u.name)}</strong><small>${esc(u.hint)}</small></span></button>`).join('')
+          : `<p class="people-empty">${q ? `No one called “${esc(q)}” has signed up yet. Share the link with them!` : 'No classmates have signed up yet.'}</p>`;
+        results.hidden = false; input.setAttribute('aria-expanded', 'true');
+      } catch { close(); }
+    };
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 180); });
+    input.addEventListener('focus', run);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); if (e.key === 'Enter') e.preventDefault(); if (e.key === 'ArrowDown') { const b = results.querySelector('.person'); if (b) { e.preventDefault(); b.focus(); } } });
+    results.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-pick]'); if (!b) return;
+      onPick({ id: b.dataset.pick, name: b.dataset.name });
+      input.value = ''; close(); input.focus();
+    });
+    results.addEventListener('mousedown', (e) => e.preventDefault());
+    input.addEventListener('blur', () => setTimeout(() => { if (!results.contains(document.activeElement)) close(); }, 120));
+  }
 
   let draftMembers = [];
   function renderDraftMembers() {
     const wrap = $('#member-chips'), input = $('#member-input');
     wrap.querySelectorAll('.member').forEach((n) => n.remove());
-    draftMembers.forEach((n, i) => {
+    draftMembers.forEach((m, i) => {
       const s = document.createElement('span'); s.className = 'member';
-      s.innerHTML = `${avatar(n)}${esc(n)}<button type="button" aria-label="Remove ${esc(n)}" data-draft-del="${i}">✕</button>`;
+      s.innerHTML = `${avatar(m.name)}${esc(m.name)}<button type="button" aria-label="Remove ${esc(m.name)}" data-draft-del="${i}">✕</button>`;
       wrap.insertBefore(s, input);
     });
   }
@@ -778,14 +869,9 @@
     if (b) { e.stopPropagation(); draftMembers.splice(+b.dataset.draftDel, 1); renderDraftMembers(); }
     else $('#member-input').focus();
   });
+  peopleSearch($('#member-input'), $('#member-results'), (p) => { if (!draftMembers.some((m) => m.id === p.id)) draftMembers.push(p); renderDraftMembers(); }, () => draftMembers.map((m) => m.id));
   $('#member-input').addEventListener('keydown', (e) => {
-    const v = e.target.value.trim().replace(/,$/, '');
-    if ((e.key === 'Enter' || e.key === ',') && v) {
-      e.preventDefault();
-      if (!draftMembers.some((n) => n.toLowerCase() === v.toLowerCase()) && v.toLowerCase() !== me.toLowerCase()) draftMembers.push(v);
-      e.target.value = ''; renderDraftMembers();
-    } else if (e.key === 'Enter') e.preventDefault();
-    else if (e.key === 'Backspace' && !e.target.value && draftMembers.length) { draftMembers.pop(); renderDraftMembers(); }
+    if (e.key === 'Backspace' && !e.target.value && draftMembers.length) { draftMembers.pop(); renderDraftMembers(); }
   });
   function openProject() {
     if (!user) return askSignIn();
@@ -796,12 +882,10 @@
   $('#form-project').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = e.target, btn = f.querySelector('[type=submit]'), err = f.querySelector('.form-error');
-    const pending = $('#member-input').value.trim();
-    if (pending) { draftMembers.push(pending); $('#member-input').value = ''; }
     btn.disabled = true; err.hidden = true;
     try {
       const p = await mutate('/api/projects', { method: 'POST', body: { title: f.title.value, course: f.course.value, description: f.description.value,
-        due_at: f.due_at.value ? new Date(f.due_at.value).toISOString() : null, members: draftMembers } });
+        due_at: f.due_at.value ? new Date(f.due_at.value).toISOString() : null, members: draftMembers.map((m) => m.id) } });
       await load();
       $('#dlg-project').close();
       location.hash = `#/projects/${p.id}`;
@@ -814,7 +898,7 @@
 
   render();
   const whoAmI = api('/api/auth/me')
-    .then((r) => { auth.problem = r.problem; auth.checked = true; if (r.user) setUser(r.user); else render(); return r.user; })
+    .then((r) => { auth.problem = r.problem; catalog = r.catalog || []; auth.checked = true; if (r.user) setUser(r.user); else render(); return r.user; })
     .catch(() => { auth.checked = true; render(); return null; });
   Promise.all([load(), whoAmI]).then(() => connect());
 })();
