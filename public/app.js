@@ -728,6 +728,7 @@
     $('#account-avatar').innerHTML = avatar(user.name);
     $('#account-name').textContent = user.name;
     $('#account-email').textContent = user.email;
+    $('#account-name-input').value = user.name;
     $('#account-error').hidden = true;
     initPicker($('#account-picker'), user.courses || []);
     $('#dlg-account').showModal();
@@ -783,16 +784,21 @@
 
   // ---------- account: edit courses ----------
   $('#save-courses').addEventListener('click', async () => {
-    const err = $('#account-error'), list = picked($('#account-picker'));
+    const err = $('#account-error'), list = picked($('#account-picker')), name = $('#account-name-input').value.trim();
     err.hidden = true;
+    if (!name) { err.textContent = 'Enter your name.'; err.hidden = false; $('#account-name-input').focus(); return; }
     if (!list.length) { err.textContent = 'Pick at least one course.'; err.hidden = false; return; }
+    const btn = $('#save-courses'); btn.disabled = true;
     try {
-      const r = await api('/api/auth/me', { method: 'PATCH', body: { courses: list } });
-      user = { ...user, courses: r.user.courses };
+      const renamed = name !== user.name;
+      const r = await api('/api/auth/me', { method: 'PATCH', body: { name, courses: list } });
+      user = { ...user, ...r.user }; me = user.name;
       $('#dlg-account').close();
       await load();
-      toast('Courses saved. Your board is updated.');
+      render();
+      toast(renamed ? `Done. You're ${user.name} now.` : 'Saved. Your board is updated.');
     } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+    btn.disabled = false;
   });
 
   function fillCourses() {
