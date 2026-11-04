@@ -14,28 +14,23 @@ No npm packages and no build step: a static frontend in `public/`, one serverles
    | --- | --- |
    | `ANTHROPIC_API_KEY` | your key from console.anthropic.com (without it, AI suggestions are generic offline ones) |
    | `RESET_KEY` | any secret word, used to reset demo data |
-   | `SESSION_SECRET` | a long random string; signs login cookies (`openssl rand -hex 32`) |
+   | `CLERK_PUBLISHABLE_KEY` | from dashboard.clerk.com → API keys (`pk_…`) |
+   | `CLERK_SECRET_KEY` | from the same page (`sk_…`); keep it secret |
 
 4. Open **Deployments**, click the three dots on the latest one and choose **Redeploy**. The app is live at `https://due-desk.vercel.app` (or the address Vercel shows).
 
-## Demo account
+## Sign-in with Clerk
 
-The database is seeded with one account you can sign in with:
+Accounts are handled by [Clerk](https://clerk.com): email sign-up, Google, password resets and account settings all come from Clerk. Due Desk keeps its own record per person (name, courses, group memberships), matched to Clerk by email.
 
-| Email | Password |
-| --- | --- |
-| `demo@duedesk.test` | `duedesk-demo` |
+1. Create an application at **dashboard.clerk.com**. Turn on the sign-in options you want (for example **Email** and **Google**).
+2. In **Configure → Domains** (or **Developers → Domains**) make sure `https://due-desk-nine.vercel.app` is allowed for the instance you use.
+3. From **API keys**, copy the **Publishable key** (`pk_…`) and the **Secret key** (`sk_…`).
+4. In Vercel → Settings → Environment Variables add `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`, then redeploy.
 
-The repo is public, so anyone can read this password. Change or remove the account before sharing the live site widely.
+How it works: the browser gets a short-lived session token from Clerk and sends it with every API call (`Authorization: Bearer …`). The API checks the token's signature against Clerk's public keys and its expiry, issuer and origin, then looks the person up. No Clerk npm packages are needed.
 
-## Turn on "Continue with Google" (optional)
-
-1. Go to **console.cloud.google.com** → create a project (or pick one) → **APIs & Services → OAuth consent screen**. Choose **External**, fill in the app name (Due Desk) and your email, and publish it.
-2. **APIs & Services → Credentials → Create credentials → OAuth client ID** → type **Web application**.
-3. Under **Authorized JavaScript origins** add `https://due-desk-nine.vercel.app` (and `http://localhost:3000` for local testing). No redirect URIs are needed.
-4. Copy the **Client ID** (it ends in `.apps.googleusercontent.com`) and add it in Vercel → Settings → Environment Variables as `GOOGLE_CLIENT_ID`. Redeploy.
-
-The button only appears once `GOOGLE_CLIENT_ID` is set. Google accounts with the same email as an existing Due Desk account sign in to that account. New Google users are asked to pick their courses right after signing in.
+New people are asked to pick their courses right after signing up. People who had a Due Desk account before Clerk keep their courses and groups when they sign up with the same email.
 
 ## Updating the app
 
@@ -64,7 +59,7 @@ Locally it uses a file instead of Redis. Put `ANTHROPIC_API_KEY=...` in a `.env`
 
 ## Features
 
-- **Accounts:** anyone can browse; posting and editing need an account (email + password, hashed with scrypt). Posts show the account's name, and only the poster can delete a deadline. Sessions last 30 days in an HttpOnly cookie.
+- **Accounts:** sign-up and sign-in through Clerk (email or Google). Everyone picks their courses; posts show the person's name, and only the poster can delete a deadline.
 - **Post a deadline:** title, course, type, due date and notes.
 - **Live dashboard:** sorted by due date and grouped into Overdue / Today / Tomorrow / This week / Later / Done, with countdowns. New posts animate in on every screen with a toast ("Ali just posted…"). The header shows how many people are online.
 - **To-do tab:** a 7-day strip; tap a day to see what's due as a checklist. Ticking items off is personal.
@@ -79,6 +74,7 @@ Locally it uses a file instead of Redis. Put `ANTHROPIC_API_KEY=...` in a `.env`
 | `api/index.js` | Vercel serverless function; `vercel.json` sends every `/api/*` request here |
 | `lib/core.js` | All API logic, sample data and the Claude call |
 | `lib/auth.js` | Password hashing and signed session cookies |
+| `lib/clerk.js` | Checks Clerk session tokens and fetches a user's name and email |
 | `lib/stores.js` | Upstash Redis storage (over its REST API) and a local in-memory store |
 | `server.js` | Local development server |
 

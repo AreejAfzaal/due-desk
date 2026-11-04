@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   }
   try {
     const body = ['POST', 'PATCH', 'PUT'].includes(req.method) ? await readBody(req) : {};
-    const ctx = { cookie: req.headers.cookie, secure: true };
+    const ctx = { authorization: req.headers.authorization, origin: req.headers.origin };
     const out = await handle(store, req.method, route, query, body, ctx);
     res.statusCode = out.status;
     for (const [k, v] of Object.entries(out.headers || {})) res.setHeader(k, v);

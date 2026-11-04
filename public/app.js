@@ -71,9 +71,13 @@
 
   // ---------- api ----------
   async function api(path, opts = {}) {
-    const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json' }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+    const headers = { 'Content-Type': 'application/json' };
+    // Clerk session tokens last about a minute; getToken() caches and refreshes them for us
+    const token = window.Clerk?.session ? await window.Clerk.session.getToken().catch(() => null) : null;
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const r = await fetch(path, { ...opts, headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
     const data = await r.json().catch(() => ({}));
-    if (r.status === 401 && !path.startsWith('/api/auth/')) { setUser(null); askSignIn(); }
+    if (r.status === 401 && !path.startsWith('/api/auth/') && !window.Clerk?.session) { setUser(null); askSignIn(); }
     if (!r.ok) throw new Error(data.error || 'Something went wrong. Try again.');
     return data;
   }
@@ -523,23 +527,12 @@
             <button type="button" role="tab" id="l-tab-signup" data-l-mode="signup" aria-selected="true">I'm new</button>
             <button type="button" role="tab" id="l-tab-login" data-l-mode="login" aria-selected="false">I have an account</button>
           </div>
-          <form id="form-landing" class="l-form" data-mode="signup" novalidate>
+          <div id="form-landing" class="l-form" data-mode="signup">
             <h2 id="l-form-title">Claim your spot ✨</h2>
-            <p class="muted" id="l-form-sub">Takes 20 seconds. Your name shows on what you post.</p>
-            <div class="g-wrap" hidden><div class="g-btn" id="l-google"></div><div class="or-line"><span>or use email</span></div></div>
-            <label class="field l-signup-only"><span>Your name</span><input name="name" maxlength="40" autocomplete="name" placeholder="Ali, Fatima, CR bhai…"></label>
-            <label class="field"><span>Email</span><input name="email" type="email" maxlength="254" autocomplete="email" placeholder="you@lhr.nu.edu.pk" required></label>
-            <div class="field">
-              <label for="l-password">Password</label>
-              <div class="l-pass"><input id="l-password" name="password" type="password" minlength="8" maxlength="200" autocomplete="new-password" required>
-                <button type="button" class="l-eye" id="l-eye" aria-label="Show password" aria-pressed="false">Show</button></div>
-              <div class="l-meter l-signup-only" aria-hidden="true"><span id="l-meter-bar"></span></div>
-              <small class="muted l-signup-only" id="l-meter-text">At least 8 characters.</small>
-            </div>
-            <div class="field l-signup-only"><span class="field-label">Your courses</span><div class="cp" id="l-picker"></div></div>
+            <p class="muted" id="l-form-sub">Takes 20 seconds. Sign up with Google or your email.</p>
+            <div class="l-clerk" id="l-clerk"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
             <p class="form-error" id="l-error" hidden></p>
-            <button type="submit" class="btn primary welcome-btn l-submit" id="l-submit">Create account →</button>
-          </form>
+          </div>
         </div>
 
         <div class="l-preview" id="l-preview" aria-hidden="true">
@@ -581,7 +574,7 @@
       <p class="l-foot">Made for FAST NUCES Lahore students · built live with Claude</p>
     </section>`;
 
-    L.counted = false;
+    L.counted = false; clerkMounted = null;
     renderStack();
     // rotating word
     if (!reduceMotion) L.timers.push(setInterval(() => {
@@ -605,21 +598,7 @@
       prev.addEventListener('pointerleave', () => { stack.style.transform = ''; });
     }
     $('#l-stack').addEventListener('click', () => { L.front = (L.front + 1) % upcomingForLanding().length; renderStack(); });
-    $('#l-eye').addEventListener('click', (e) => {
-      const p = $('#l-password'), show = p.type === 'password';
-      p.type = show ? 'text' : 'password';
-      e.currentTarget.textContent = show ? 'Hide' : 'Show';
-      e.currentTarget.setAttribute('aria-pressed', String(show));
-      e.currentTarget.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
-    });
-    $('#l-password').addEventListener('input', meter);
-    $('#form-landing').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const f = e.target;
-      await submitAuth(f, f.dataset.mode === 'signup', $('#l-error'), $('#l-submit'), () => confetti($('#l-submit')));
-    });
-    initPicker($('#l-picker'));
-    renderGoogleButtons();
+    mountClerkForm();
     if (auth.problem) { $('#l-error').textContent = auth.problem; $('#l-error').hidden = false; }
     tickLanding();
   }
@@ -627,31 +606,15 @@
   function setLandingMode(mode) {
     const f = $('#form-landing'); if (!f) return;
     const signup = mode === 'signup';
+    if (f.dataset.mode === mode && f.dataset.mounted) return;
     f.dataset.mode = mode;
     $('.l-seg').dataset.mode = mode;
     $('#l-tab-signup').setAttribute('aria-selected', String(signup));
     $('#l-tab-login').setAttribute('aria-selected', String(!signup));
     $('#l-form-title').textContent = signup ? 'Claim your spot ✨' : 'Kya scene hai? 👀';
-    $('#l-form-sub').textContent = signup ? 'Takes 20 seconds. Your name shows on what you post.' : 'Welcome back. Your batch has been busy.';
-    $('#l-submit').textContent = signup ? 'Create account →' : "Let's go →";
-    f.password.autocomplete = signup ? 'new-password' : 'current-password';
-    $('#l-error').hidden = true;
+    $('#l-form-sub').textContent = signup ? 'Takes 20 seconds. Sign up with Google or your email.' : 'Welcome back. Your batch has been busy.';
     f.classList.remove('swap'); void f.offsetWidth; f.classList.add('swap');
-    (signup ? f.name : f.email).focus({ preventScroll: true });
-  }
-
-  function meter() {
-    const v = $('#l-password').value;
-    let s = 0;
-    if (v.length >= 8) s++;
-    if (v.length >= 12) s++;
-    if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++;
-    if (/\d/.test(v) || /[^A-Za-z0-9]/.test(v)) s++;
-    const labels = ['At least 8 characters.', 'Okay, that works.', 'Nice.', 'Strong. Respect.', 'Unhackable vibes.'];
-    const bar = $('#l-meter-bar');
-    bar.style.width = `${v ? Math.max(8, s * 25) : 0}%`;
-    bar.dataset.level = String(s);
-    $('#l-meter-text').textContent = v.length && v.length < 8 ? `${8 - v.length} more to go.` : labels[s];
+    mountClerkForm();
   }
 
   function renderStack() {
@@ -727,98 +690,83 @@
 
   // ---------- dialogs ----------
   // ---------- sign in / create account ----------
-  // ---------- Sign in with Google (Google Identity Services) ----------
-  let googleReady = false;
-  function loadGoogle(clientId) {
-    if (!clientId || window.google?.accounts?.id) return;
-    const sc = document.createElement('script');
-    sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.defer = true;
-    sc.onload = () => {
-      google.accounts.id.initialize({ client_id: clientId, callback: onGoogle, ux_mode: 'popup', context: 'signin' });
-      googleReady = true; renderGoogleButtons();
-    };
-    document.head.appendChild(sc);
+  // ---------- Clerk (sign in, sign up, sessions) ----------
+  const clerkAppearance = {
+    variables: { colorPrimary: '#133197', colorText: '#0B1B3F', colorTextSecondary: '#4A5B78', colorBackground: '#FFFFFF',
+      colorInputBackground: '#FFFFFF', colorDanger: '#B42318', colorSuccess: '#019832', borderRadius: '12px',
+      fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif', fontSize: '15px' },
+    elements: {
+      rootBox: { width: '100%' }, cardBox: { width: '100%', boxShadow: 'none', border: 'none' },
+      card: { boxShadow: 'none', border: 'none', padding: '0', background: 'transparent' },
+      header: { display: 'none' }, footer: { display: 'none' },
+      formButtonPrimary: { borderRadius: '999px', minHeight: '48px', fontSize: '16px', fontWeight: 700, textTransform: 'none' },
+      socialButtonsBlockButton: { borderRadius: '999px', minHeight: '46px' },
+      formFieldInput: { borderRadius: '12px', minHeight: '46px' },
+    },
+  };
+  let clerkMounted = null;
+  function mountClerkForm() {
+    const el = $('#l-clerk'), f = $('#form-landing');
+    if (!el || !window.Clerk?.loaded) return;
+    const mode = f.dataset.mode;
+    if (clerkMounted === mode && el.dataset.mounted) return;
+    try { if (clerkMounted === 'signup') Clerk.unmountSignUp(el); if (clerkMounted === 'login') Clerk.unmountSignIn(el); } catch {}
+    el.innerHTML = '';
+    const opts = { appearance: clerkAppearance, routing: 'virtual', fallbackRedirectUrl: location.origin + '/', signInFallbackRedirectUrl: location.origin + '/', signUpFallbackRedirectUrl: location.origin + '/' };
+    mode === 'signup' ? Clerk.mountSignUp(el, opts) : Clerk.mountSignIn(el, opts);
+    clerkMounted = mode; el.dataset.mounted = '1'; f.dataset.mounted = '1';
   }
-  function renderGoogleButtons() {
-    if (!googleReady) return;
-    ['l-google', 'auth-google'].forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el || el.dataset.done) return;
-      const w = Math.min(400, Math.max(220, el.parentElement.getBoundingClientRect().width || 320));
-      google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', logo_alignment: 'center', width: Math.round(w) });
-      el.dataset.done = '1';
-      el.closest('.g-wrap').hidden = false;
+
+  function loadScript(src, attrs = {}) {
+    return new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = src; sc.async = true; sc.crossOrigin = 'anonymous';
+      Object.entries(attrs).forEach(([k, v]) => sc.setAttribute(k, v));
+      sc.onload = resolve; sc.onerror = () => reject(new Error(`Couldn't load ${src}`));
+      document.head.appendChild(sc);
     });
   }
-  async function onGoogle(resp) {
+  async function startClerk(publishableKey) {
+    if (!publishableKey) return false;
+    const fapi = atob(publishableKey.split('_')[2] || '').replace(/\$$/, '');
+    await loadScript(`https://${fapi}/npm/@clerk/ui@1/dist/ui.browser.js`);
+    await loadScript(`https://${fapi}/npm/@clerk/clerk-js@6/dist/clerk.browser.js`, { 'data-clerk-publishable-key': publishableKey });
+    await window.Clerk.load({ ui: { ClerkUI: window.__internal_ClerkUICtor }, appearance: clerkAppearance });
+    // react to sign-in and sign-out from any Clerk screen
+    let wasSignedIn = !!window.Clerk.user;
+    window.Clerk.addListener(({ user: cu }) => {
+      const now = !!cu;
+      if (now === wasSignedIn) return;
+      wasSignedIn = now;
+      now ? afterClerkSignIn(true) : setUser(null);
+    });
+    return true;
+  }
+  async function afterClerkSignIn(fresh) {
     try {
-      const fromLanding = !!$('#form-landing');
-      const r = await api('/api/auth/google', { method: 'POST', body: { credential: resp.credential } });
-      if ($('#dlg-signin').open) $('#dlg-signin').close();
-      if (fromLanding) confetti($('#l-google'));
+      const r = await api('/api/auth/me');
+      if (!r.user) { toast("Couldn't load your account. Refresh and try again.", true); return; }
+      const isNew = !(r.user.courses || []).length;
+      if (fresh && $('#l-clerk')) confetti($('#l-clerk'));
+      clerkMounted = null;
       setUser(r.user);
-      toast(r.isNew ? `Welcome, ${r.user.name.split(' ')[0]}! Your account is ready.` : `Signed in as ${r.user.name}`);
-      if (!(r.user.courses || []).length) setTimeout(() => { openAccount(); toast('One last step: pick your courses so your board fills up.'); }, 400);
+      await load();
+      if (fresh) toast(isNew ? `Welcome, ${r.user.name.split(' ')[0]}! Your account is ready.` : `Signed in as ${r.user.name}`);
+      if (isNew) setTimeout(() => { openAccount(); toast('One last step: pick your courses so your board fills up.'); }, 400);
     } catch (ex) { toast(ex.message, true); }
   }
 
-  async function submitAuth(f, signup, err, btn, onSuccess) {
-    const fail = (msg, field) => { err.textContent = msg; err.hidden = false; if (field) field.focus(); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); };
-    if (signup && !f.name.value.trim()) return fail('Enter your name.', f.name);
-    if (!f.email.validity.valid || !f.email.value) return fail('Enter a valid email address.', f.email);
-    if (signup ? f.password.value.length < 8 : !f.password.value) return fail(signup ? 'Use a password of at least 8 characters.' : 'Enter your password.', f.password);
-    const courses = picked(f.querySelector('.cp'));
-    if (signup && !courses.length) return fail('Pick at least one course so your board can fill up.', f.querySelector('.cp-search'));
-    const label = btn.textContent;
-    btn.disabled = true; err.hidden = true; btn.textContent = signup ? 'Creating your account…' : 'Signing you in…';
-    try {
-      const r = await api(signup ? '/api/auth/signup' : '/api/auth/login', { method: 'POST',
-        body: { name: f.name.value, email: f.email.value, password: f.password.value, courses } });
-      if (onSuccess) onSuccess();
-      f.reset();
-      setUser(r.user);
-      toast(signup ? `Welcome, ${r.user.name.split(' ')[0]}! Your account is ready.` : `Signed in as ${r.user.name}`);
-      btn.disabled = false; btn.textContent = label;
-      return true;
-    } catch (ex) { fail(ex.message, f.password); }
-    btn.disabled = false; btn.textContent = label;
-    return false;
-  }
   function setUser(u) { user = u; me = u ? u.name : ''; render(); }
-  function setAuthMode(mode) {
-    const f = $('#form-auth'), signup = mode === 'signup';
-    f.dataset.mode = mode;
-    $('#auth-kicker').textContent = signup ? 'Join the batch' : 'Oye, welcome back';
-    $('#auth-title').textContent = signup ? 'Claim your spot ✨' : 'Kya scene hai? 👀';
-    $('#auth-sub').textContent = signup ? 'Your name shows on what you post, so the batch knows who dropped that surprise quiz.' : 'Sign in to drop deadlines and squad up on group projects.';
-    $('#auth-sticker').textContent = signup ? 'takes 20 seconds' : 'no more “quiz kab hai?”';
-    $('#auth-submit').textContent = signup ? 'Create account →' : "Let's go →";
-    $('#auth-switch-text').textContent = signup ? 'Already one of us?' : 'New here?';
-    $('#auth-switch').textContent = signup ? 'Sign in' : 'Make an account';
-    f.password.autocomplete = signup ? 'new-password' : 'current-password';
-    $('#signin-error').hidden = true;
-  }
   function askSignIn(mode = 'login') {
-    // on the landing page, use its built-in form instead of the pop-up
+    // on the landing page, switch its built-in Clerk form; anywhere else use Clerk's own pop-up
     if (document.body.classList.contains('landing-mode') && $('#form-landing')) {
       setLandingMode(mode);
       $('#l-auth').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
-    const d = $('#dlg-signin');
-    setAuthMode(mode);
-    if (!$('#auth-picker')._picked) initPicker($('#auth-picker'));
-    setTimeout(renderGoogleButtons, 0);
-    if (auth.problem) { $('#signin-error').textContent = auth.problem; $('#signin-error').hidden = false; }
-    if (!d.open) d.showModal();
-    (mode === 'signup' ? $('#form-auth').name : $('#form-auth').email).focus();
+    if (window.Clerk?.loaded) mode === 'signup' ? Clerk.openSignUp({ appearance: clerkAppearance }) : Clerk.openSignIn({ appearance: clerkAppearance });
+    else toast(auth.problem || 'Sign-in is still loading. Try again in a moment.', true);
   }
-  $('#auth-switch').addEventListener('click', () => askSignIn($('#form-auth').dataset.mode === 'login' ? 'signup' : 'login'));
-  $('#form-auth').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const f = e.target;
-    await submitAuth(f, f.dataset.mode === 'signup', $('#signin-error'), $('#auth-submit'), () => $('#dlg-signin').close());
-  });
   function openAccount() {
     $('#account-avatar').innerHTML = avatar(user.name);
     $('#account-name').textContent = user.name;
@@ -828,9 +776,10 @@
     initPicker($('#account-picker'), user.courses || []);
     $('#dlg-account').showModal();
   }
+  $('#manage-signin').addEventListener('click', () => { $('#dlg-account').close(); window.Clerk?.openUserProfile({ appearance: clerkAppearance }); });
   $('#signout-btn').addEventListener('click', async () => {
-    try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
     $('#dlg-account').close();
+    try { await window.Clerk?.signOut(); } catch {}
     ui.browse = false;
     setUser(null);
     window.scrollTo(0, 0);
@@ -998,8 +947,20 @@
   setInterval(() => { if (!document.querySelector('dialog[open]') && !(document.activeElement && document.activeElement.dataset.key)) render(); }, 60000);
 
   render();
-  const whoAmI = api('/api/auth/me')
-    .then((r) => { auth.problem = r.problem; catalog = r.catalog || []; loadGoogle(r.googleClientId); auth.checked = true; if (r.user) setUser(r.user); else render(); return r.user; })
-    .catch(() => { auth.checked = true; render(); return null; });
+  const whoAmI = (async () => {
+    try {
+      const cfg = await api('/api/auth/me');
+      auth.problem = cfg.problem; catalog = cfg.catalog || [];
+      const ready = await Promise.race([startClerk(cfg.clerkPublishableKey), new Promise((res) => setTimeout(() => res('slow'), 10000))]).catch((e) => { console.error(e); return false; });
+      if (ready === 'slow' || ready === false) auth.problem = auth.problem || "Sign-in couldn't load. Check your connection and refresh.";
+      if (window.Clerk?.user) {
+        const r = await api('/api/auth/me');
+        auth.checked = true;
+        if (r.user) { setUser(r.user); if (!(r.user.courses || []).length) setTimeout(openAccount, 400); return r.user; }
+      }
+    } catch {}
+    auth.checked = true; render(); mountClerkForm();
+    return null;
+  })();
   Promise.all([load(), whoAmI]).then(() => connect());
 })();

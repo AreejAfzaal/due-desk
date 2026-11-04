@@ -36,27 +36,7 @@
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<!-- Sign in -->
-<dialog id="dlg-signin" class="sheet">
-  <form id="form-auth" class="sheet-body welcome" data-mode="login" novalidate>
-    <div class="welcome-art" aria-hidden="true">
-      <span class="w-blob w-sky"></span><span class="w-blob w-gold"></span><span class="w-blob w-green"></span>
-      <span class="w-sticker" id="auth-sticker">no more “quiz kab hai?”</span>
-    </div>
-    <p class="welcome-kicker" id="auth-kicker">Oye, welcome back</p>
-    <h2 id="auth-title" class="welcome-title">Kya scene hai? 👀</h2>
-    <p class="muted" id="auth-sub">Sign in to drop deadlines and squad up on group projects.</p>
-    <div class="g-wrap" hidden><div class="g-btn" id="auth-google"></div><div class="or-line"><span>or use email</span></div></div>
-    <label class="field" data-signup-only><span>Your name</span><input name="name" maxlength="40" autocomplete="name" placeholder="Shown on what you post"></label>
-    <label class="field"><span>Email</span><input name="email" type="email" maxlength="254" autocomplete="email" required></label>
-    <label class="field"><span>Password</span><input name="password" type="password" minlength="8" maxlength="200" autocomplete="current-password" required><small class="muted" data-signup-only>At least 8 characters.</small></label>
-    <div class="field" data-signup-only><span class="field-label">Your courses</span><div class="cp" id="auth-picker"></div></div>
-    <p class="form-error" id="signin-error" hidden></p>
-    <button type="submit" class="btn primary welcome-btn" id="auth-submit">Let's go →</button>
-    <p class="auth-switch"><span id="auth-switch-text">New here?</span> <button type="button" class="linkish" id="auth-switch">Make an account</button></p>
-    <div class="sheet-actions welcome-skip"><button type="button" class="btn" data-close>Just lurking for now</button></div>
-  </form>
-</dialog>
+
 
 <!-- Account -->
 <dialog id="dlg-account" class="sheet">
@@ -66,7 +46,7 @@
     <label class="field" style="margin-top:16px"><span>Your name</span><input id="account-name-input" maxlength="40" autocomplete="name" placeholder="Shown on what you post"><small class="muted">Updates everywhere your name shows, including past posts.</small></label>
     <div class="field" style="margin-top:16px"><span class="field-label">Your courses</span><small class="muted">You see deadlines for these courses, plus anything in your group projects.</small><div class="cp" id="account-picker"></div></div>
     <p class="form-error" id="account-error" hidden></p>
-    <div class="sheet-actions"><button type="button" class="btn" id="signout-btn">Sign out</button><button type="button" class="btn primary" id="save-courses">Save changes</button></div>
+    <div class="sheet-actions account-actions"><button type="button" class="linkish" id="manage-signin">Email, password and Google</button><span class="spacer"></span><button type="button" class="btn" id="signout-btn">Sign out</button><button type="button" class="btn primary" id="save-courses">Save changes</button></div>
   </div>
 </dialog>
 
