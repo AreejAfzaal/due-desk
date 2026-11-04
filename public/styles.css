@@ -192,12 +192,16 @@ details.group[open] > summary::after { transform: rotate(45deg) translate(-2px, 
 .suggest { background: var(--fast-sky-soft); border: 1px solid var(--fast-sky); border-radius: var(--radius-md); padding: 14px; margin-top: 12px; }
 .suggest h3 { margin: 0 0 4px; font-size: 16px; color: var(--fast-sky-strong); }
 .suggest p { margin: 0 0 10px; font-size: 14px; color: var(--ink-muted); }
-.srow { display: grid; grid-template-columns: 76px 1fr 40px; grid-template-areas: "title title title" "hours assign del"; gap: 6px 8px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(1,152,204,.25); }
-.srow input[name="title"] { grid-area: title; }
-.srow input[name="hours"] { grid-area: hours; }
-.srow select { grid-area: assign; }
+.srow { display: grid; grid-template-columns: 104px 1fr 40px; grid-template-areas: "title title title" "hours assign del"; gap: 8px; align-items: end; padding: 12px 0; border-top: 1px solid rgba(1,152,204,.25); }
+.sfield { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.slabel { font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-muted); }
+.s-title { grid-area: title; } .s-hours { grid-area: hours; } .s-assign { grid-area: assign; }
 .srow .icon-btn { grid-area: del; }
-@media (min-width: 640px) { .srow { grid-template-columns: 1fr 76px 150px 40px; grid-template-areas: "title hours assign del"; } }
+.hours-box { position: relative; display: block; }
+.hours-box input { width: 100%; padding-right: 38px !important; -moz-appearance: textfield; }
+.hours-box input::-webkit-inner-spin-button, .hours-box input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.hours-unit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: var(--ink-muted); pointer-events: none; }
+@media (min-width: 640px) { .srow { grid-template-columns: 1fr 104px 160px 40px; grid-template-areas: "title hours assign del"; } }
 .suggest .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; }
 .skeleton { height: 40px; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--surface-muted), var(--surface-raised), var(--surface-muted)); background-size: 200% 100%; animation: shimmer 1.2s infinite; margin-bottom: 8px; }
 @keyframes shimmer { to { background-position: -200% 0; } }
@@ -205,6 +209,7 @@ details.group[open] > summary::after { transform: rotate(45deg) translate(-2px, 
 /* Inputs */
 input:not([type="radio"]):not([type="checkbox"]), textarea, select { border: 1px solid var(--line); background: var(--surface-raised); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 16px; width: 100%; }
 .inline-form input, .srow input, .srow select { padding: 8px 10px; }
+.srow input, .srow select { height: 44px; box-sizing: border-box; }
 textarea { resize: vertical; }
 .field { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; border: none; padding: 0; }
 .field > span, .field > label, .field legend { font-size: 14px; font-weight: 600; padding: 0; }

@@ -345,7 +345,7 @@
 
     const taskRows = tasks.map((t) => `<div class="task ${t.done ? 'done' : ''}">
         <input type="checkbox" class="check" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.title)} done">
-        <div class="tt"><strong>${esc(t.title)}</strong><small>${t.estimate_hours ? `~${t.estimate_hours} h` : ''}${t.source === 'ai' ? `${t.estimate_hours ? ' · ' : ''}<span class="badge b-ai" style="padding:0 6px;font-size:12px">AI</span>` : ''}</small></div>
+        <div class="tt"><strong>${esc(t.title)}</strong><small>${t.estimate_hours ? `Est. ${t.estimate_hours} ${t.estimate_hours === 1 ? 'hr' : 'hrs'}` : ''}${t.source === 'ai' ? `${t.estimate_hours ? ' · ' : ''}<span class="badge b-ai" style="padding:0 6px;font-size:12px">AI</span>` : ''}</small></div>
         <label class="sr-only" for="as-${t.id}">Assign ${esc(t.title)}</label>
         <select id="as-${t.id}" data-assign="${t.id}">${options(t.assignee)}</select>
         <button type="button" class="icon-btn" data-del-task="${t.id}" aria-label="Delete task ${esc(t.title)}">✕</button>
@@ -358,10 +358,10 @@
       suggest = `<div class="suggest"><h3>Suggested tasks</h3>
         <p>${ui.offline ? 'Offline suggestions: add an Anthropic API key on the server for real AI. ' : ''}Edit, remove or assign them, then add them to the project.</p>
         ${ui.suggestions.map((s, i) => `<div class="srow">
-          <label class="sr-only" for="s-t-${i}">Task ${i + 1}</label><input id="s-t-${i}" name="title" data-key="s-t-${i}" data-s-title="${i}" value="${esc(s.title)}">
-          <label class="sr-only" for="s-h-${i}">Hours</label><input id="s-h-${i}" name="hours" data-key="s-h-${i}" data-s-hours="${i}" type="number" min="0.5" step="0.5" value="${esc(s.estimate_hours)}">
-          <label class="sr-only" for="s-a-${i}">Assign</label><select id="s-a-${i}" data-s-assign="${i}">${options(s.assignee)}</select>
-          <button type="button" class="icon-btn" data-s-del="${i}" aria-label="Remove suggestion">✕</button></div>`).join('')}
+          <label class="sfield s-title"><span class="slabel">Task ${i + 1}</span><input name="title" data-key="s-t-${i}" data-s-title="${i}" value="${esc(s.title)}"></label>
+          <label class="sfield s-hours"><span class="slabel">Est. time</span><span class="hours-box"><input name="hours" data-key="s-h-${i}" data-s-hours="${i}" type="number" min="0.5" step="0.5" inputmode="decimal" value="${esc(s.estimate_hours)}"><span class="hours-unit" aria-hidden="true">hrs</span></span></label>
+          <label class="sfield s-assign"><span class="slabel">Assign to</span><select data-s-assign="${i}">${options(s.assignee)}</select></label>
+          <button type="button" class="icon-btn" data-s-del="${i}" aria-label="Remove task ${i + 1}">✕</button></div>`).join('')}
         <div class="actions"><button type="button" class="btn small" data-s-discard>Discard</button><button type="button" class="btn small primary" data-s-accept>Add ${ui.suggestions.length} tasks</button></div></div>`;
     } else if (ui.suggestError && ui.suggestFor === p.id) {
       suggest = `<p class="form-error" style="margin-top:12px">${esc(ui.suggestError)}</p>`;
