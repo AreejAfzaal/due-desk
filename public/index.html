@@ -45,6 +45,7 @@
     <div class="account-row"><span id="account-avatar"></span><span><strong id="account-name"></strong><span class="muted" id="account-email"></span></span></div>
     <label class="field" style="margin-top:16px"><span>Your name</span><input id="account-name-input" maxlength="40" autocomplete="name" placeholder="Shown on what you post"><small class="muted">Updates everywhere your name shows, including past posts.</small></label>
     <div class="field" style="margin-top:16px"><span class="field-label">Your courses</span><small class="muted">You see deadlines for these courses, plus anything in your group projects.</small><div class="cp" id="account-picker"></div></div>
+    <div class="field" id="section-fields" hidden><span class="field-label">Your sections</span><small class="muted">Only students in the same section see what's posted to it. Pick yours from the list or type it, e.g. BCS-3A.</small><div class="sec-grid" id="section-grid"></div></div>
     <p class="form-error" id="account-error" hidden></p>
     <div class="sheet-actions account-actions"><button type="button" class="linkish" id="manage-signin">Email, password and Google</button><span class="spacer"></span><button type="button" class="btn" id="signout-btn">Sign out</button><button type="button" class="btn primary" id="save-courses">Save changes</button></div>
   </div>
@@ -55,9 +56,8 @@
   <form id="form-deadline" class="sheet-body">
     <div class="sheet-head"><h2>Add a deadline</h2><button type="button" class="icon-btn" data-close aria-label="Close">✕</button></div>
     <label class="field"><span>Title</span><input name="title" required maxlength="120" placeholder="e.g. Quiz 3: Trees and heaps"></label>
-    <label class="field"><span>Course</span><select name="course" required id="deadline-course"></select><small class="muted">Everyone enrolled in this course will see it.</small></label>
+    <label class="field"><span>Course</span><select name="course" required id="deadline-course"></select><small class="muted" id="deadline-course-hint">Only students in your section of this course will see it.</small></label>
     <label class="field" id="deadline-project-field"><span>Group project <em>(optional)</em></span><select name="project_id" id="deadline-project"></select><small class="muted">Also shows it to everyone in that group.</small></label>
-    <datalist id="course-list"></datalist>
     <fieldset class="field">
       <legend>Type</legend>
       <div class="seg">
@@ -79,14 +79,14 @@
   <form id="form-project" class="sheet-body">
     <div class="sheet-head"><h2>New group project</h2><button type="button" class="icon-btn" data-close aria-label="Close">✕</button></div>
     <label class="field"><span>Project title</span><input name="title" required maxlength="120" placeholder="e.g. Library management system"></label>
-    <label class="field"><span>Course</span><input name="course" maxlength="80" list="course-list" placeholder="e.g. Software Engineering"></label>
+    <label class="field"><span>Course</span><select name="course" required id="project-course"></select><small class="muted">Group members must be in your section of this course.</small></label>
     <label class="field"><span>Due</span><input name="due_at" type="datetime-local"></label>
     <label class="field"><span>What do you have to build?</span><textarea name="description" rows="3" maxlength="1000" placeholder="Paste the project brief. The AI uses this to suggest tasks."></textarea></label>
     <div class="field">
       <label for="member-input">Group members</label>
       <div class="chips-input" id="member-chips"><input id="member-input" placeholder="Search classmates by name" maxlength="40" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="member-results"></div>
       <div class="people-results" id="member-results" role="listbox" hidden></div>
-      <small class="muted">Only people who have signed up show up. You're added automatically.</small>
+      <small class="muted">Only classmates in your section show up. You're added automatically.</small>
     </div>
     <p class="form-error" hidden></p>
     <div class="sheet-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Create project</button></div>

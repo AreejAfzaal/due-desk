@@ -60,6 +60,7 @@ Locally it uses a file instead of Redis. Put `ANTHROPIC_API_KEY=...` in a `.env`
 ## Features
 
 - **Accounts:** sign-up and sign-in through Clerk (email or Google). Everyone picks their courses; posts show the person's name, and only the poster can delete a deadline.
+- **Course sections:** everyone sets their section (e.g. BCS-3A) for each course, picking from sections classmates already use or typing a new one. Deadlines and group projects are posted to your section, and only students in that same section of the course see them. Group members must be in the project's section. Deadlines posted before sections existed stay visible to the whole course.
 - **Post a deadline:** title, course, type, due date and notes.
 - **Live dashboard:** sorted by due date and grouped into Overdue / Today / Tomorrow / This week / Later / Done, with countdowns. New posts animate in on every screen with a toast ("Ali just posted…"). The header shows how many people are online.
 - **To-do tab:** a 7-day strip; tap a day to see what's due as a checklist. Ticking items off is personal.

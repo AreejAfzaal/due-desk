@@ -547,3 +547,10 @@ input[list]::-webkit-calendar-picker-indicator { opacity: 0; width: 36px; height
   /* Keep the floating + clear of the last card */
   body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 }
+
+/* Account: one section box per course */
+.sec-grid { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.sec-item { display: grid; grid-template-columns: 1fr 150px; align-items: center; gap: 10px; }
+.sec-item > span { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.sec-item input { padding: 8px 10px; }
+@media (max-width: 420px) { .sec-item { grid-template-columns: 1fr 120px; } }

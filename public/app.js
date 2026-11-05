@@ -23,6 +23,10 @@
     const k = courseKey(c), mine = (user?.courses || []).map(courseKey), i = mine.indexOf(k);
     return COURSE_COLORS[(i >= 0 ? i : hash(k)) % COURSE_COLORS.length];
   };
+  // "Data Structures · BCS-3A"; deadlines from before sections show just the course
+  const withSection = (course, section) => esc(course) + (section ? ` · ${esc(section)}` : '');
+  const mySection = (course) => (user?.sections || {})[courseKey(course)] || '';
+  const coursesWithSection = () => (user?.courses || []).filter((c) => mySection(c));
   const dot = (c) => (c ? `<span class="course-dot" style="background:${courseColor(c)}" aria-hidden="true"></span>` : '');
   const avatarColor = (n) => AVATAR_COLORS[hash(n.toLowerCase()) % AVATAR_COLORS.length];
   const initials = (n) => n.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -220,10 +224,11 @@
     const addInput = view.querySelector('#add-member');
     if (addInput) {
       const pid = addInput.closest('.member-add').dataset.project;
+      const proj = state.projects.find((x) => x.id === pid);
       peopleSearch(addInput, view.querySelector('#add-member-results'), async (person) => {
         try { await mutate(`/api/projects/${pid}/members`, { method: 'POST', body: { user_id: person.id } }); toast(`${person.name} added to the group`); }
         catch (ex) { toast(ex.message, true); }
-      }, () => state.members.filter((m) => m.project_id === pid).map((m) => m.user_id));
+      }, () => state.members.filter((m) => m.project_id === pid).map((m) => m.user_id), () => (proj && proj.section ? proj.course : ''));
     }
     if (focusKey) {
       const el = view.querySelector(`[data-key="${CSS.escape(focusKey)}"]`);
@@ -266,7 +271,7 @@
           const isDone = done.has(x.id), late = !isDone && new Date(x.due_at) < Date.now();
           return `<label class="todo-row ${isDone ? 'done' : ''}">
           <input type="checkbox" class="check" data-done="${x.id}" ${isDone ? 'checked' : ''} aria-label="Mark ${esc(x.title)} done">
-          <span class="t"><strong>${esc(x.title)}</strong><span class="muted todo-meta">${dot(x.course)}${esc(x.course)} · ${esc(x.type)} · ${fmtTime(x.due_at)}</span></span>
+          <span class="t"><strong>${esc(x.title)}</strong><span class="muted todo-meta">${dot(x.course)}${withSection(x.course, x.section)} · ${esc(x.type)} · ${fmtTime(x.due_at)}</span></span>
           ${isDone ? '' : `<span class="todo-when ${late ? 'late' : ''}">${countdown(x.due_at)}</span>`}
         </label>`;
         }).join('')
@@ -319,7 +324,7 @@
     return `<article class="card u-${u.key} ${ui.newIds.has(d.id) ? 'new' : ''} ${isDone ? 'is-done' : ''}">
       <input type="checkbox" class="check" data-done="${d.id}" ${isDone ? 'checked' : ''} aria-label="Mark ${esc(d.title)} done">
       <div class="body">
-        <div class="meta"><span class="course-dot" style="background:${courseColor(d.course)}"></span>${esc(d.course)} · ${esc(d.type)}</div>
+        <div class="meta"><span class="course-dot" style="background:${courseColor(d.course)}"></span>${withSection(d.course, d.section)} · ${esc(d.type)}</div>
         <h3>${esc(d.title)}</h3>
         ${d.notes ? `<p class="notes">${esc(d.notes)}</p>` : ''}
         <div class="foot"><span><b>${fmtDue(d.due_at)}</b> · ${countdown(d.due_at)}</span><span>Posted by ${esc(d.posted_by)} · ${timeAgo(d.created_at)}</span></div>
@@ -343,7 +348,7 @@
       const { tasks, doneCount, pct } = projectStats(p);
       const members = live(state.members).filter((m) => m.project_id === p.id);
       return `<a class="pcard" href="#/projects/${p.id}">
-        <div class="meta pmeta">${dot(p.course)}${esc(p.course || 'Group project')}${p.due_at ? ` · due ${esc(fmtDue(p.due_at))}` : ''}</div>
+        <div class="meta pmeta">${dot(p.course)}${p.course ? withSection(p.course, p.section) : 'Group project'}${p.due_at ? ` · due ${esc(fmtDue(p.due_at))}` : ''}</div>
         <h3>${esc(p.title)}</h3>
         <div class="progress" aria-label="${pct}% done"><span style="width:${pct}%"></span></div>
         <div class="prow"><span>${doneCount} of ${tasks.length} tasks done</span><span class="avatars">${members.slice(0, 5).map((m) => avatar(m.name)).join('')}</span></div>
@@ -387,7 +392,7 @@
     }
 
     return `<a class="back" href="#/projects">← All projects</a>
-      <section class="hero"><div class="muted pmeta">${dot(p.course)}${esc(p.course || 'Group project')}${p.due_at ? ` · due ${esc(fmtDue(p.due_at))}` : ''}</div>
+      <section class="hero"><div class="muted pmeta">${dot(p.course)}${p.course ? withSection(p.course, p.section) : 'Group project'}${p.due_at ? ` · due ${esc(fmtDue(p.due_at))}` : ''}</div>
         <h1>${esc(p.title)}</h1>${p.description ? `<p>${esc(p.description)}</p>` : ''}</section>
 
       <div class="panel"><h2>Members</h2>
@@ -624,7 +629,7 @@
     $('#l-stack').innerHTML = order.map((d, i) => {
       const u = urgency(d);
       return `<article class="l-mini" style="--i:${i}">
-        <div class="meta"><span class="course-dot" style="background:${courseColor(d.course)}"></span>${esc(d.course)} · ${esc(d.type)}</div>
+        <div class="meta"><span class="course-dot" style="background:${courseColor(d.course)}"></span>${withSection(d.course, d.section)} · ${esc(d.type)}</div>
         <h3>${esc(d.title)}</h3>
         <div class="l-mini-foot"><span>${fmtDue(d.due_at)}</span><span class="badge ${u.cls}">${u.label}</span></div>
         <div class="l-mini-by">Posted by ${esc(d.posted_by)}</div>
@@ -779,12 +784,14 @@
       const r = await api('/api/auth/me');
       if (!r.user) { toast("Couldn't load your account. Refresh and try again.", true); return; }
       const isNew = !(r.user.courses || []).length;
+      sectionChoices = r.sectionOptions || {};
       if (fresh && $('#l-clerk')) confetti($('#l-clerk'));
       clerkMounted = null;
       setUser(r.user);
       await load();
       if (fresh) toast(isNew ? `Welcome, ${r.user.name.split(' ')[0]}! Your account is ready.` : `Signed in as ${r.user.name}`);
-      if (isNew) setTimeout(() => { openAccount(); toast('One last step: pick your courses so your board fills up.'); }, 400);
+      if (isNew) setTimeout(() => { openAccount(); toast('One last step: pick your courses and sections so your board fills up.'); }, 400);
+      else if (r.user.courses.some((c) => !(r.user.sections || {})[courseKey(c)])) setTimeout(() => { openAccount(); toast('New: pick your section for each course so you see your section’s deadlines.'); }, 400);
     } catch (ex) { toast(ex.message, true); }
   }
 
@@ -805,6 +812,7 @@
     $('#account-email').textContent = user.email;
     $('#account-name-input').value = user.name;
     $('#account-error').hidden = true;
+    ui.draftSections = { ...(user.sections || {}) };
     initPicker($('#account-picker'), user.courses || []);
     $('#dlg-account').showModal();
   }
@@ -853,10 +861,30 @@
     shown.sort((a, b) => (el._picked.has(b) - el._picked.has(a)));
     el.querySelector('.cp-chips').innerHTML = shown.map((c) => `<button type="button" class="cp-chip" data-course="${esc(c)}" aria-pressed="${el._picked.has(c)}">${el._picked.has(c) ? '✓ ' : ''}${esc(c)}</button>`).join('')
       || `<span class="muted" style="font-size:13px">No match. Press Enter to add “${esc(el.querySelector('.cp-search').value.trim())}”.</span>`;
+    if (el.id === 'account-picker') drawSections([...el._picked]);
     const n = el._picked.size;
     el.querySelector('.cp-count').textContent = n ? `${n} course${n === 1 ? '' : 's'} picked` : 'Pick the courses you are taking this semester.';
   }
   const picked = (el) => (el && el._picked ? [...el._picked] : []);
+
+  // one section box per picked course, with the sections classmates already use as suggestions
+  let sectionChoices = {};
+  function drawSections(courses) {
+    const grid = $('#section-grid'), drafts = ui.draftSections || {};
+    grid.querySelectorAll('input').forEach((i) => { drafts[i.dataset.course] = i.value; });
+    $('#section-fields').hidden = !courses.length;
+    grid.innerHTML = courses.map((c, i) => {
+      const k = courseKey(c), opts = sectionChoices[k] || [];
+      return `<label class="sec-item"><span>${dot(c)}${esc(c)}</span>
+        <input data-course="${esc(k)}" list="sec-opts-${i}" maxlength="24" placeholder="Section, e.g. BCS-3A" value="${esc(drafts[k] || '')}" autocomplete="off" aria-label="Your section for ${esc(c)}">
+        <datalist id="sec-opts-${i}">${opts.map((s) => `<option value="${esc(s)}">`).join('')}</datalist></label>`;
+    }).join('');
+  }
+  const draftedSections = () => {
+    const out = {};
+    $('#section-grid').querySelectorAll('input').forEach((i) => { const v = i.value.trim(); if (v) out[i.dataset.course] = v; });
+    return out;
+  };
 
   // ---------- account: edit courses ----------
   $('#save-courses').addEventListener('click', async () => {
@@ -864,10 +892,15 @@
     err.hidden = true;
     if (!name) { err.textContent = 'Enter your name.'; err.hidden = false; $('#account-name-input').focus(); return; }
     if (!list.length) { err.textContent = 'Pick at least one course.'; err.hidden = false; return; }
+    const sections = draftedSections(), missing = list.find((c) => !sections[courseKey(c)]);
+    if (missing) {
+      err.textContent = `Add your section for ${missing}.`; err.hidden = false;
+      $(`#section-grid input[data-course="${CSS.escape(courseKey(missing))}"]`)?.focus(); return;
+    }
     const btn = $('#save-courses'); btn.disabled = true;
     try {
       const renamed = name !== user.name;
-      const r = await api('/api/auth/me', { method: 'PATCH', body: { name, courses: list } });
+      const r = await api('/api/auth/me', { method: 'PATCH', body: { name, courses: list, sections } });
       user = { ...user, ...r.user }; me = user.name;
       $('#dlg-account').close();
       await load();
@@ -877,15 +910,11 @@
     btn.disabled = false;
   });
 
-  function fillCourses() {
-    const courses = [...new Set([...(user?.courses || []), ...state.projects.map((p) => p.course)].filter(Boolean))].sort();
-    $('#course-list').innerHTML = courses.map((c) => `<option value="${esc(c)}">`).join('');
-  }
   function openDeadline() {
     if (!user) return askSignIn();
-    if (!user.courses || !user.courses.length) { openAccount(); toast('Pick your courses first, then post.'); return; }
+    if (!coursesWithSection().length) { openAccount(); toast('Pick your courses and sections first, then post.'); return; }
     const f = $('#form-deadline'); f.reset(); f.querySelector('.form-error').hidden = true;
-    $('#deadline-course').innerHTML = user.courses.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    $('#deadline-course').innerHTML = coursesWithSection().map((c) => `<option value="${esc(c)}">${withSection(c, mySection(c))}</option>`).join('');
     const projects = state.projects;
     $('#deadline-project-field').hidden = !projects.length;
     $('#deadline-project').innerHTML = `<option value="">None</option>` + projects.map((p) => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
@@ -902,19 +931,20 @@
         project_id: f.project_id.value || null, due_at: new Date(f.due_at.value).toISOString(), notes: f.notes.value } });
       $('#dlg-deadline').close();
       if (location.hash && location.hash !== '#/') location.hash = '#/';
-      toast(`Posted. Everyone in ${f.course.value} can see it now.`);
+      toast(`Posted. Everyone in ${f.course.value} ${mySection(f.course.value)} can see it now.`);
     } catch (ex) { err.textContent = ex.message; err.hidden = false; }
     btn.disabled = false;
   });
 
   // ---------- people search (only signed-up users) ----------
-  function peopleSearch(input, results, onPick, exclude = () => []) {
+  function peopleSearch(input, results, onPick, exclude = () => [], scope = () => '') {
     let timer, seq = 0;
     const close = () => { results.hidden = true; input.setAttribute('aria-expanded', 'false'); };
     const run = async () => {
       const my = ++seq, q = input.value.trim();
       try {
-        const r = await api(`/api/users?q=${encodeURIComponent(q)}`);
+        const course = scope();
+        const r = await api(`/api/users?q=${encodeURIComponent(q)}${course ? `&course=${encodeURIComponent(course)}` : ''}`);
         if (my !== seq) return;
         const skip = new Set(exclude());
         const list = r.users.filter((u) => !skip.has(u.id));
@@ -951,14 +981,19 @@
     if (b) { e.stopPropagation(); draftMembers.splice(+b.dataset.draftDel, 1); renderDraftMembers(); }
     else $('#member-input').focus();
   });
-  peopleSearch($('#member-input'), $('#member-results'), (p) => { if (!draftMembers.some((m) => m.id === p.id)) draftMembers.push(p); renderDraftMembers(); }, () => draftMembers.map((m) => m.id));
+  peopleSearch($('#member-input'), $('#member-results'), (p) => { if (!draftMembers.some((m) => m.id === p.id)) draftMembers.push(p); renderDraftMembers(); },
+    () => draftMembers.map((m) => m.id), () => $('#project-course').value);
+  // members must share the project's section, so a new course starts the list over
+  $('#project-course').addEventListener('change', () => { if (draftMembers.length) { draftMembers = []; renderDraftMembers(); toast('Group members cleared: pick classmates from this course section.'); } });
   $('#member-input').addEventListener('keydown', (e) => {
     if (e.key === 'Backspace' && !e.target.value && draftMembers.length) { draftMembers.pop(); renderDraftMembers(); }
   });
   function openProject() {
     if (!user) return askSignIn();
+    if (!coursesWithSection().length) { openAccount(); toast('Pick your courses and sections first.'); return; }
     const f = $('#form-project'); f.reset(); f.querySelector('.form-error').hidden = true;
-    draftMembers = []; renderDraftMembers(); fillCourses();
+    $('#project-course').innerHTML = coursesWithSection().map((c) => `<option value="${esc(c)}">${withSection(c, mySection(c))}</option>`).join('');
+    draftMembers = []; renderDraftMembers();
     $('#dlg-project').showModal(); f.title.focus();
   }
   $('#form-project').addEventListener('submit', async (e) => {
@@ -988,7 +1023,14 @@
       if (window.Clerk?.user) {
         const r = await api('/api/auth/me');
         auth.checked = true;
-        if (r.user) { setUser(r.user); if (!(r.user.courses || []).length) setTimeout(openAccount, 400); return r.user; }
+        if (r.user) {
+          sectionChoices = r.sectionOptions || {};
+          setUser(r.user);
+          const courses = r.user.courses || [];
+          if (!courses.length) setTimeout(openAccount, 400);
+          else if (courses.some((c) => !(r.user.sections || {})[courseKey(c)])) setTimeout(() => { openAccount(); toast('New: pick your section for each course so you see your section’s deadlines.'); }, 400);
+          return r.user;
+        }
       }
     } catch {}
     auth.checked = true; render(); mountClerkForm();
